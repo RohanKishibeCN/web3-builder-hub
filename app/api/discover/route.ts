@@ -41,10 +41,22 @@ ${JSON.stringify(searchResults)}
     })
   });
 
+  if (!response.ok) {
+    throw new Error(`Kimi API error: ${response.status}`);
+  }
+
   const data = await response.json();
-  const content = data.choices[0].message.content;
   
-  // 修复：用字符串方法提取 JSON
+  // 安全获取 content
+  const message = data.choices?.[0]?.message;
+  if (!message) {
+    console.error('Kimi response:', JSON.stringify(data));
+    throw new Error('Invalid Kimi response');
+  }
+  
+  const content = message.content;
+  
+  // 提取 JSON
   const startIdx = content.indexOf('[');
   const endIdx = content.lastIndexOf(']');
   if (startIdx !== -1 && endIdx !== -1 && endIdx > startIdx) {
