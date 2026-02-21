@@ -43,4 +43,62 @@ ${JSON.stringify(searchResults)}
 
   const data = await response.json();
   const content = data.choices[0].message.content;
-  const jsonMatch = content.match(/\
+  
+  // 修复：用字符串方法提取 JSON
+  const startIdx = content.indexOf('[');
+  const endIdx = content.lastIndexOf(']');
+  if (startIdx !== -1 && endIdx !== -1 && endIdx > startIdx) {
+    const jsonStr = content.substring(startIdx, endIdx + 1);
+    return JSON.parse(jsonStr);
+  }
+  
+  return [];
+}
+
+export async function GET() {
+  try {
+    const queries = [
+      'web3 hackathon 2026',
+      'ethereum builder program 2026',
+      'solana grant 2026'
+    ];
+
+    const allResults: any[] = [];
+    for (const q of queries) {
+      try {
+        const data = await braveSearch(q);
+        allResults.push(...(data.web?.results || []));
+      } catch (e) {
+        console.error(`Search failed for "${q}":`, e);
+      }
+    }
+
+    // 用 Kimi 提取结构化数据
+    const projects = await extractProjects(allResults.slice(0, 15));
+
+    // 存入数据库
+    for (const p of projects) {
+      try {
+        await sql`
+          INSERT INTO projects (title, url, deadline, prize_pool, summary, source)
+          VALUES (${p.title}, ${p.url}, ${p.deadline}, ${p.prize_pool}, ${p.summary}, ${p.source || 'Brave Search'})
+          ON CONFLICT (url) DO NOTHING;
+        `;
+      } catch (e) {
+        console.error('Insert error:', e);
+      }
+    }
+
+    return NextResponse.json({ 
+      success: true, 
+      count: projects.length,
+      projects 
+    });
+  } catch (error) {
+    console.error('Discover error:', error);
+    return NextResponse.json({ 
+      success: false, 
+      error: (error as Error).message 
+    }, { status: 500 });
+  }
+}
