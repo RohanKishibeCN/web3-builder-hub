@@ -46,32 +46,64 @@ ${JSON.stringify(searchResults)}
   }
 
   const data = await response.json();
+  const content = data.choices?.[0]?.message?.content;
   
-  // 安全获取 content
-  const message = data.choices?.[0]?.message;
-  if (!message) {
-    console.error('Kimi response:', JSON.stringify(data));
-    throw new Error('Invalid Kimi response');
-  }
-  
-  const content = message.content;
-  
-  // 提取 JSON
   const startIdx = content.indexOf('[');
   const endIdx = content.lastIndexOf(']');
   if (startIdx !== -1 && endIdx !== -1 && endIdx > startIdx) {
-    const jsonStr = content.substring(startIdx, endIdx + 1);
-    return JSON.parse(jsonStr);
+    return JSON.parse(content.substring(startIdx, endIdx + 1));
   }
   
   return [];
+}
+
+async function scoreProject(project: any) {
+  const response = await fetch('https://api.moonshot.ai/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${KIMI_API_KEY}`
+    },
+    body: JSON.stringify({
+      model: 'kimi-k2-turbo-preview',
+      messages: [{
+        role: 'user',
+        content: `作为 Web3 Builder 专家，给这个项目打分（1-10分），输出 JSON 格式：
+        
+项目：${JSON.stringify(project)}
+
+输出格式：
+{
+  "total_score": number,
+  "prize_score": number,
+  "urgency_score": number,
+  "quality_score": number,
+  "builder_match": number,
+  "reason": "简短中文评价"
+}`
+      }],
+      temperature: 0.3
+    })
+  });
+
+  if (!response.ok) return null;
+
+  const data = await response.json();
+  const content = data.choices?.[0]?.message?.content;
+  
+  const startIdx = content.indexOf('{');
+  const endIdx = content.lastIndexOf('}');
+  if (startIdx !== -1 && endIdx !== -1) {
+    return JSON.parse(content.substring(startIdx, endIdx + 1));
+  }
+  return null;
 }
 
 export async function GET() {
   try {
     const queries = [
       'web3 hackathon 2026',
-      'ethereum builder program 2026',
+      'ethereum builder program 2026', 
       'solana grant 2026'
     ];
 
@@ -79,32 +111,49 @@ export async function GET() {
     for (const q of queries) {
       try {
         const data = await braveSearch(q);
-        allResults.push(...(data.web?.results || []));
+        const results = data?.web?.results || [];
+        allResults.push(...results);
       } catch (e) {
         console.error(`Search failed for "${q}":`, e);
       }
     }
 
-    // 用 Kimi 提取结构化数据
+    if (allResults.length === 0) {
+      return NextResponse.json({ 
+        success: true, 
+        count: 0,
+        projects: [],
+        message: 'No search results'
+      });
+    }
+
     const projects = await extractProjects(allResults.slice(0, 15));
 
-    // 存入数据库
     for (const p of projects) {
       try {
-        await sql`
+        const result = await sql`
           INSERT INTO projects (title, url, deadline, prize_pool, summary, source)
           VALUES (${p.title}, ${p.url}, ${p.deadline}, ${p.prize_pool}, ${p.summary}, ${p.source || 'Brave Search'})
-          ON CONFLICT (url) DO NOTHING;
+          ON CONFLICT (url) DO NOTHING
+          RETURNING id;
         `;
+        
+        if (result.rows[0]) {
+          const projectId = result.rows[0].id;
+          const score = await scoreProject(p);
+          if (score) {
+            await sql`UPDATE projects SET score = ${JSON.stringify(score)} WHERE id = ${projectId}`;
+          }
+        }
       } catch (e) {
-        console.error('Insert error:', e);
+        console.error('Insert/Score error:', e);
       }
     }
 
     return NextResponse.json({ 
       success: true, 
       count: projects.length,
-      projects 
+      message: 'Projects discovered and scored'
     });
   } catch (error) {
     console.error('Discover error:', error);
