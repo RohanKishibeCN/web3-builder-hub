@@ -45,7 +45,7 @@ export async function GET() {
 
     projects.forEach((p: any, i: number) => {
       const score = JSON.parse(p.score_text);
-      report `${i + 1}. <b>${p.title}</b>\n`;
+      report += `${i + 1}. <b>${p.title}</b>\n`;
       report += `   评分: ${score.total_score}/10\n`;
       report += `   奖金: ${p.prize_pool || '待定'}\n`;
       report += `   截止: ${p.deadline ? new Date(p.deadline).toLocaleDateString('zh-CN') : '待定'}\n`;
