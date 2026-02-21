@@ -26,7 +26,7 @@ async function extractProjects(searchResults: any[]) {
       'Authorization': `Bearer ${KIMI_API_KEY}`
     },
     body: JSON.stringify({
-      model: 'k2p5',
+      model: 'kimi-k2-turbo-preview',
       messages: [{
         role: 'user',
         content: `从以下搜索结果中提取所有 Web3 Hackathon/Builder Program/Grant 项目，输出 JSON 数组格式：
