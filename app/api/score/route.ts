@@ -42,16 +42,24 @@ export async function POST(request: Request) {
     const data = await response.json();
     const content = data.choices[0].message.content;
     
-    // 提取 JSON
-    const jsonMatch = content.match(/\{[\s\S]*\}/);
-    const score = jsonMatch ? JSON.parse(jsonMatch[0]) : {
-      total_score: 8,
-      prize_score: 8,
-      urgency_score: 7,
-      quality_score: 8,
-      builder_match: 8,
-      reason: "项目看起来不错"
-    };
+    // 修复：用字符串方法提取 JSON
+    const startIdx = content.indexOf('{');
+    const endIdx = content.lastIndexOf('}');
+    let score;
+    
+    if (startIdx !== -1 && endIdx !== -1 && endIdx > startIdx) {
+      const jsonStr = content.substring(startIdx, endIdx + 1);
+      score = JSON.parse(jsonStr);
+    } else {
+      score = {
+        total_score: 8,
+        prize_score: 8,
+        urgency_score: 7,
+        quality_score: 8,
+        builder_match: 8,
+        reason: "项目看起来不错"
+      };
+    }
 
     await sql`
       UPDATE projects 
