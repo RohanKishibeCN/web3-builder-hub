@@ -71,21 +71,17 @@ async function scoreProject(project: any) {
         model: 'kimi-k2-turbo-preview',
         messages: [{
           role: 'user',
-          content: `作为 Web3 Builder 专家，给这个项目打分（1-10分），输出 JSON 格式：
+          content: `作为 Web3 Builder 专家，给这个项目打分（1-10分），只输出纯 JSON，不要 markdown 代码块，不要其他文字：
           
-项目：${JSON.stringify(project)}
+项目标题：${project.title}
+项目描述：${project.summary}
+奖金：${project.prize_pool || '无'}
+截止日期：${project.deadline || '无'}
 
 输出格式：
-{
-  "total_score": number,
-  "prize_score": number,
-  "urgency_score": number,
-  "quality_score": number,
-  "builder_match": number,
-  "reason": "简短中文评价"
-}`
+{"total_score":8,"prize_score":8,"urgency_score":7,"quality_score":8,"builder_match":8,"reason":"评价"}`
         }],
-        temperature: 0.3
+        temperature: 0.1
       })
     });
 
@@ -98,24 +94,32 @@ async function scoreProject(project: any) {
     }
 
     const data = await response.json();
-    console.log('Kimi score response:', JSON.stringify(data).slice(0, 500));
-    
     const content = data.choices?.[0]?.message?.content;
+    console.log('Raw content:', content);
+    
     if (!content) {
-      console.error('No content in response');
+      console.error('No content');
       return null;
     }
     
-    const startIdx = content.indexOf('{');
-    const endIdx = content.lastIndexOf('}');
-    if (startIdx !== -1 && endIdx !== -1) {
-      const score = JSON.parse(content.substring(startIdx, endIdx + 1));
+    // 清理 content（去除 markdown 代码块）
+    let cleanContent = content
+      .replace(/```json\s*/g, '')
+      .replace(/```\s*/g, '')
+      .trim();
+    
+    console.log('Clean content:', cleanContent);
+    
+    // 直接解析
+    try {
+      const score = JSON.parse(cleanContent);
       console.log('Parsed score:', score);
       return score;
+    } catch (parseError) {
+      console.error('JSON parse error:', parseError);
+      console.error('Content was:', cleanContent);
+      return null;
     }
-    
-    console.error('No JSON found in content:', content);
-    return null;
   } catch (e) {
     console.error('Score project error:', e);
     return null;
@@ -163,22 +167,32 @@ export async function GET() {
           RETURNING id;
         `;
         
-        console.log('Insert result:', result.rows);
-        
+        let projectId;
         if (result.rows[0]) {
-          const projectId = result.rows[0].id;
-          console.log('New project, scoring:', projectId);
-          const score = await scoreProject(p);
-          if (score) {
-            await sql`UPDATE projects SET score = ${JSON.stringify(score)} WHERE id = ${projectId}`;
-            scoredCount++;
-            console.log('Score saved for:', projectId);
-          }
+          projectId = result.rows[0].id;
+          console.log('New project:', projectId);
         } else {
-          console.log('Project already exists:', p.url);
+          const existing = await sql`SELECT id FROM projects WHERE url = ${p.url}`;
+          projectId = existing.rows[0]?.id;
+          console.log('Existing project:', projectId);
+        }
+        
+        if (projectId) {
+          const check = await sql`SELECT score FROM projects WHERE id = ${projectId}`;
+          if (!check.rows[0]?.score) {
+            console.log('Scoring project:', projectId);
+            const score = await scoreProject(p);
+            if (score) {
+              await sql`UPDATE projects SET score = ${JSON.stringify(score)} WHERE id = ${projectId}`;
+              scoredCount++;
+              console.log('Score saved:', projectId);
+            }
+          } else {
+            console.log('Already scored:', projectId);
+          }
         }
       } catch (e) {
-        console.error('Insert/Score error:', e);
+        console.error('Error:', e);
       }
     }
 
