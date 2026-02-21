@@ -58,18 +58,21 @@ ${JSON.stringify(searchResults)}
 }
 
 async function scoreProject(project: any) {
-  const response = await fetch('https://api.moonshot.ai/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${KIMI_API_KEY}`
-    },
-    body: JSON.stringify({
-      model: 'kimi-k2-turbo-preview',
-      messages: [{
-        role: 'user',
-        content: `作为 Web3 Builder 专家，给这个项目打分（1-10分），输出 JSON 格式：
-        
+  console.log('Calling scoreProject for:', project.title);
+  
+  try {
+    const response = await fetch('https://api.moonshot.ai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${KIMI_API_KEY}`
+      },
+      body: JSON.stringify({
+        model: 'kimi-k2-turbo-preview',
+        messages: [{
+          role: 'user',
+          content: `作为 Web3 Builder 专家，给这个项目打分（1-10分），输出 JSON 格式：
+          
 项目：${JSON.stringify(project)}
 
 输出格式：
@@ -81,22 +84,42 @@ async function scoreProject(project: any) {
   "builder_match": number,
   "reason": "简短中文评价"
 }`
-      }],
-      temperature: 0.3
-    })
-  });
+        }],
+        temperature: 0.3
+      })
+    });
 
-  if (!response.ok) return null;
+    console.log('Kimi score API status:', response.status);
 
-  const data = await response.json();
-  const content = data.choices?.[0]?.message?.content;
-  
-  const startIdx = content.indexOf('{');
-  const endIdx = content.lastIndexOf('}');
-  if (startIdx !== -1 && endIdx !== -1) {
-    return JSON.parse(content.substring(startIdx, endIdx + 1));
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Kimi score API error:', errorText);
+      return null;
+    }
+
+    const data = await response.json();
+    console.log('Kimi score response:', JSON.stringify(data).slice(0, 500));
+    
+    const content = data.choices?.[0]?.message?.content;
+    if (!content) {
+      console.error('No content in response');
+      return null;
+    }
+    
+    const startIdx = content.indexOf('{');
+    const endIdx = content.lastIndexOf('}');
+    if (startIdx !== -1 && endIdx !== -1) {
+      const score = JSON.parse(content.substring(startIdx, endIdx + 1));
+      console.log('Parsed score:', score);
+      return score;
+    }
+    
+    console.error('No JSON found in content:', content);
+    return null;
+  } catch (e) {
+    console.error('Score project error:', e);
+    return null;
   }
-  return null;
 }
 
 export async function GET() {
@@ -128,7 +151,9 @@ export async function GET() {
     }
 
     const projects = await extractProjects(allResults.slice(0, 15));
+    console.log('Extracted projects:', projects.length);
 
+    let scoredCount = 0;
     for (const p of projects) {
       try {
         const result = await sql`
@@ -138,12 +163,19 @@ export async function GET() {
           RETURNING id;
         `;
         
+        console.log('Insert result:', result.rows);
+        
         if (result.rows[0]) {
           const projectId = result.rows[0].id;
+          console.log('New project, scoring:', projectId);
           const score = await scoreProject(p);
           if (score) {
             await sql`UPDATE projects SET score = ${JSON.stringify(score)} WHERE id = ${projectId}`;
+            scoredCount++;
+            console.log('Score saved for:', projectId);
           }
+        } else {
+          console.log('Project already exists:', p.url);
         }
       } catch (e) {
         console.error('Insert/Score error:', e);
@@ -153,6 +185,7 @@ export async function GET() {
     return NextResponse.json({ 
       success: true, 
       count: projects.length,
+      scored: scoredCount,
       message: 'Projects discovered and scored'
     });
   } catch (error) {
