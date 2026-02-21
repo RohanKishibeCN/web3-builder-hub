@@ -1,7 +1,27 @@
 import { sql } from '@vercel/postgres';
 
+interface Project {
+  id: number;
+  title: string;
+  url: string;
+  summary: string;
+  source: string;
+  discovered_at: string;
+  deadline: string | null;
+  prize_pool: string | null;
+  score_text: string | null;
+  score: {
+    total_score: number;
+    prize_score: number;
+    urgency_score: number;
+    quality_score: number;
+    builder_match: number;
+    reason: string;
+  } | null;
+}
+
 export default async function Home() {
-  const { rows: projects } = await sql`
+  const { rows } = await sql`
     SELECT 
       id,
       title,
@@ -19,15 +39,14 @@ export default async function Home() {
     LIMIT 20
   `;
 
-  const parsedProjects = projects.map(p => ({
+  const projects: Project[] = rows.map((p: any) => ({
     ...p,
     score: p.score_text ? JSON.parse(p.score_text) : null
   }));
 
-  const topProjects = parsedProjects.filter(p => p.score && p.score.total_score >= 8).slice(0, 3);
-  const otherProjects = parsedProjects.filter(p => !p.score || p.score.total_score < 8);
+  const topProjects = projects.filter(p => p.score && p.score.total_score >= 8).slice(0, 3);
+  const otherProjects = projects.filter(p => !p.score || p.score.total_score < 8);
 
-  // 评分颜色
   const getScoreColor = (score: number) => {
     if (score >= 9) return 'text-emerald-400';
     if (score >= 8) return 'text-orange-400';
@@ -38,16 +57,14 @@ export default async function Home() {
   return (
     <div className="min-h-screen p-6 bg-zinc-950 text-white">
       <div className="max-w-4xl mx-auto">
-        {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold mb-2">🦞 Web3 Builder 情报站</h1>
           <p className="text-zinc-500">
             已发现 {projects.length} 个项目 · 
-            已评分 {projects.filter(p => p.score_text).length} 个
+            已评分 {projects.filter(p => p.score).length} 个
           </p>
         </div>
 
-        {/* Top 3 */}
         {topProjects.length > 0 && (
           <div className="mb-8">
             <h2 className="text-sm font-medium text-zinc-500 uppercase tracking-wider mb-4">
@@ -89,8 +106,8 @@ export default async function Home() {
                       </div>
                     </div>
                     <div className="text-center">
-                      <div className={`text-3xl font-bold ${getScoreColor(p.score.total_score)}`}>
-                        {p.score.total_score}
+                      <div className={`text-3xl font-bold ${getScoreColor(p.score!.total_score)}`}>
+                        {p.score!.total_score}
                       </div>
                       <div className="text-xs text-zinc-500 mt-1">总分</div>
                     </div>
@@ -101,7 +118,6 @@ export default async function Home() {
           </div>
         )}
 
-        {/* Other Projects */}
         <div>
           <h2 className="text-sm font-medium text-zinc-500 uppercase tracking-wider mb-4">
             📋 更多项目
@@ -136,7 +152,6 @@ export default async function Home() {
           </div>
         </div>
 
-        {/* Footer */}
         <div className="mt-12 pt-6 border-t border-zinc-800 text-center text-zinc-600 text-sm">
           <p>每天自动更新 · 早8点推送 Telegram</p>
         </div>
