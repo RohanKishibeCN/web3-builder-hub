@@ -14,7 +14,7 @@ export async function POST(request: Request) {
         'Authorization': `Bearer ${KIMI_API_KEY}`
       },
       body: JSON.stringify({
-        model: 'k2p5',
+        model: 'kimi-k2-turbo-preview',
         messages: [{
           role: 'user',
           content: `作为 Web3 Builder 专家，给这个项目打分（1-10分），只输出 JSON 格式，不要其他文字：
