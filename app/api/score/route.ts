@@ -7,7 +7,7 @@ export async function POST(request: Request) {
   try {
     const { projectId, project } = await request.json();
 
-    const response = await fetch('https://api.kimi.com/coding/v1/chat/completions', {
+    const response = await fetch('https://api.moonshot.ai/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
