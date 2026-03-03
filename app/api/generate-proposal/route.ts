@@ -1,20 +1,17 @@
 /**
- * Web3 Builder Hub - 申请文案生成 API（Phase 3）
+ * Web3 Builder Hub - 申请文案生成 API（Phase 3 优化版）
  * 根据项目信息生成完整的申请文案
  * 
  * POST /api/generate-proposal
  * Body: { projectId: number }
+ * 
+ * 优化点：使用统一 LLM 客户端
  */
 
 import { NextResponse } from 'next/server';
 import { sql } from '@vercel/postgres';
+import { callLLM } from '@/lib/llm-client';
 import type { Project } from '@/types/project';
-
-function getKimiKey(): string {
-  const key = process.env.KIMI_API_KEY;
-  if (!key) throw new Error('KIMI_API_KEY not configured');
-  return key;
-}
 
 async function getProjectById(id: number): Promise<Project | null> {
   const result = await sql`SELECT * FROM projects WHERE id = ${id}`;
@@ -37,9 +34,7 @@ async function getProjectById(id: number): Promise<Project | null> {
   };
 }
 
-async function generateProposalWithKimi(project: Project): Promise<string> {
-  const KIMI_API_KEY = getKimiKey();
-  
+async function generateProposalWithLLM(project: Project): Promise<string> {
   const deepDive = project.deepDiveResult;
   
   const prompt = `作为 Web3 Builder，为以下项目生成一份专业的申请文案。
@@ -64,25 +59,7 @@ async function generateProposalWithKimi(project: Project): Promise<string> {
 
 文案风格：专业、简洁、有说服力。直接输出文案内容，不要加标题。`;
 
-  const response = await fetch('https://api.moonshot.ai/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${KIMI_API_KEY}`,
-    },
-    body: JSON.stringify({
-      model: 'kimi-k2-turbo-preview',
-      messages: [{ role: 'user', content: prompt }],
-      temperature: 0.7,
-    }),
-  });
-
-  if (!response.ok) {
-    throw new Error(`Kimi API: ${response.status}`);
-  }
-
-  const data = await response.json();
-  return data.choices?.[0]?.message?.content || '';
+  return callLLM(prompt, { temperature: 0.7 });
 }
 
 export async function POST(request: Request) {
@@ -110,7 +87,7 @@ export async function POST(request: Request) {
     }
 
     // 生成申请文案
-    const proposal = await generateProposalWithKimi(project);
+    const proposal = await generateProposalWithLLM(project);
 
     const duration = Date.now() - startTime;
 
