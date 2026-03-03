@@ -1,17 +1,19 @@
 /**
- * Web3 Builder Hub - Deep Dive API
- * 深度研判：网页内容提取 + Kimi 智能分析
+ * Web3 Builder Hub - Deep Dive API（优化版）
+ * 深度研判：网页内容提取 + LLM 智能分析
  * 
  * GET /api/deep-dive?limit=10 - 手动触发
  * Cron: 每天 23:00
+ * 
+ * 优化点：使用统一 LLM 客户端，添加 Lark 通知
  */
 
 import { NextResponse } from 'next/server';
 import { sendSystemNotification } from '@/lib/telegram';
+import { sendLarkNotification } from '@/lib/lark';
+import { callLLM, extractJSON } from '@/lib/llm-client';
 import type { Project, DeepDiveResult, DeepDiveResponse } from '@/types/project';
 import { getPendingDeepDiveProjects, updateProjectStatus, logApiCall } from '@/lib/db';
-
-const KIMI_API_KEY = process.env.KIMI_API_KEY;
 
 // ==================== 网页内容提取 ====================
 
@@ -31,11 +33,9 @@ async function extractContent(url: string): Promise<string> {
   }
 }
 
-// ==================== Kimi 分析 ====================
+// ==================== LLM 分析 ====================
 
-async function analyzeWithKimi(project: Project, content: string): Promise<DeepDiveResult | null> {
-  if (!KIMI_API_KEY) throw new Error('KIMI_API_KEY not configured');
-
+async function analyzeWithLLM(project: Project, content: string): Promise<DeepDiveResult | null> {
   const prompt = `作为 Web3 Builder 专家，深度分析以下项目。
 
 项目信息:
@@ -75,35 +75,9 @@ ${content.slice(0, 6000)}
 
 只输出 JSON，不要其他文字。`;
 
-  const response = await fetch('https://api.moonshot.ai/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${KIMI_API_KEY}`,
-    },
-    body: JSON.stringify({
-      model: 'kimi-k2-turbo-preview',
-      messages: [{ role: 'user', content: prompt }],
-      temperature: 0.4,
-    }),
-  });
-
-  if (!response.ok) throw new Error(`Kimi API: ${response.status}`);
-
-  const data = await response.json();
-  const content_text = data.choices?.[0]?.message?.content || '';
-
-  // 提取 JSON
-  const startIdx = content_text.indexOf('{');
-  const endIdx = content_text.lastIndexOf('}');
-  
-  if (startIdx === -1 || endIdx === -1 || endIdx <= startIdx) {
-    console.log('Kimi response:', content_text);
-    return null;
-  }
-
   try {
-    const parsed = JSON.parse(content_text.slice(startIdx, endIdx + 1));
+    const response = await callLLM(prompt, { temperature: 0.4 });
+    const parsed = extractJSON(response);
     
     return {
       score: parsed.score,
@@ -136,14 +110,14 @@ async function processProject(project: Project): Promise<{
     // 提取网页内容
     const content = await extractContent(project.url);
     
-    // Kimi 分析
-    const analysis = await analyzeWithKimi(
+    // LLM 分析
+    const analysis = await analyzeWithLLM(
       project, 
       content || `项目名称: ${project.title}\n简介: ${project.summary}`
     );
 
     if (!analysis) {
-      return { success: false, error: 'Kimi analysis failed' };
+      return { success: false, error: 'LLM analysis failed' };
     }
 
     // 更新数据库
@@ -222,10 +196,9 @@ export async function GET(request: Request) {
     console.log('=== Deep Dive Completed ===', result);
 
     if (result.highScore > 0) {
-      await sendSystemNotification(
-        'success',
-        `深度研判完成\n处理: ${result.processed} 个\n高分: ${result.highScore} 个`
-      );
+      const msg = `深度研判完成\n处理: ${result.processed} 个\n高分: ${result.highScore} 个`;
+      await sendSystemNotification('success', msg);
+      await sendLarkNotification('success', msg);
     }
 
     return NextResponse.json({
@@ -234,7 +207,9 @@ export async function GET(request: Request) {
     });
   } catch (error) {
     console.error('Deep Dive error:', error);
-    await sendSystemNotification('error', `深度研判失败: ${error}`);
+    const msg = `深度研判失败: ${error}`;
+    await sendSystemNotification('error', msg);
+    await sendLarkNotification('error', msg);
 
     return NextResponse.json(
       { success: false, error: String(error), timestamp: new Date().toISOString() },
