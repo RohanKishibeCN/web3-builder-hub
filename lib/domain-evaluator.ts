@@ -1,9 +1,10 @@
 /**
  * Web3 Builder Hub - 域名质量评估器
- * 使用大模型自动评估新发现的域名
+ * 使用统一 LLM 客户端自动评估新发现的域名
  */
 
 import { detectTrack, getTrackPriorityScore, TRACKS } from './whitelist';
+import { callLLM, extractJSON } from './llm-client';
 
 export interface DomainEvaluation {
   domain: string;
@@ -15,12 +16,6 @@ export interface DomainEvaluation {
   shouldAdd: boolean;
 }
 
-function getKimiKey(): string {
-  const key = process.env.KIMI_API_KEY;
-  if (!key) throw new Error('KIMI_API_KEY not configured');
-  return key;
-}
-
 export async function evaluateDomain(
   domain: string,
   context?: {
@@ -29,8 +24,6 @@ export async function evaluateDomain(
     foundOn?: string;
   }
 ): Promise<DomainEvaluation | null> {
-  const KIMI_API_KEY = getKimiKey();
-
   const prompt = `评估以下 Web3 项目域名是否值得加入白名单。
 
 域名: ${domain}
@@ -63,35 +56,8 @@ ${context?.foundOn ? `发现来源: ${context.foundOn}` : ''}
 只输出 JSON，不要其他文字。`;
 
   try {
-    const response = await fetch('https://api.moonshot.ai/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${KIMI_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: 'kimi-k2-turbo-preview',
-        messages: [{ role: 'user', content: prompt }],
-        temperature: 0.3,
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error(`Kimi API: ${response.status}`);
-    }
-
-    const data = await response.json();
-    const content = data.choices?.[0]?.message?.content || '';
-
-    const startIdx = content.indexOf('{');
-    const endIdx = content.lastIndexOf('}');
-
-    if (startIdx === -1 || endIdx === -1 || endIdx <= startIdx) {
-      console.log('Kimi response:', content);
-      return null;
-    }
-
-    const parsed = JSON.parse(content.slice(startIdx, endIdx + 1));
+    const response = await callLLM(prompt, { temperature: 0.3 });
+    const parsed = extractJSON(response);
 
     let adjustedPriority = parsed.priority;
     if (parsed.track === 'AI' || parsed.track === 'Infra') {
