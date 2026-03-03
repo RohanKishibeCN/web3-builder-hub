@@ -55,6 +55,31 @@ export function getCurrentProvider(): LLMProvider {
 }
 
 /**
+ * 获取 LLM API Key
+ * 优先使用 LLM_API_KEY，如果不存在则使用 provider 特定的 key
+ */
+function getApiKey(provider: LLMProvider): string | undefined {
+  // 优先使用统一的 LLM_API_KEY
+  if (process.env.LLM_API_KEY) {
+    return process.env.LLM_API_KEY;
+  }
+
+  // 向后兼容：使用 provider 特定的 key
+  switch (provider) {
+    case 'kimi':
+      return process.env.KIMI_API_KEY;
+    case 'openai':
+      return process.env.OPENAI_API_KEY;
+    case 'groq':
+      return process.env.GROQ_API_KEY;
+    case 'anthropic':
+      return process.env.ANTHROPIC_API_KEY;
+    default:
+      return undefined;
+  }
+}
+
+/**
  * 获取 LLM 配置信息
  */
 export function getLLMInfo() {
@@ -76,10 +101,10 @@ export function getLLMInfo() {
 export async function callLLM(prompt: string, options: CallLLMOptions = {}): Promise<string> {
   const provider = getCurrentProvider();
   const config = PROVIDER_CONFIGS[provider];
-  const apiKey = process.env.LLM_API_KEY;
+  const apiKey = getApiKey(provider);
 
   if (!apiKey) {
-    throw new Error(`LLM_API_KEY not configured for provider: ${provider}`);
+    throw new Error(`API key not configured for provider: ${provider}. Please set LLM_API_KEY or ${provider.toUpperCase()}_API_KEY`);
   }
 
   const maxTokens = options.maxTokens || config.maxTokens;
