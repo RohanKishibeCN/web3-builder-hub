@@ -6,7 +6,9 @@ import {
   getDynamicWhitelist 
 } from '@/lib/db';
 import { sendSystemNotification, sendCandidateForConfirmation } from '@/lib/telegram';
+import { sendLarkNotification, sendLarkCandidateNotification } from '@/lib/lark';
 import { evaluateDomain, quickEvaluate } from '@/lib/domain-evaluator';
+import { callLLM, extractJSON } from '@/lib/llm-client';
 import { 
   CHAIN_WHITELIST, 
   INSTITUTION_WHITELIST,
@@ -20,12 +22,6 @@ import type { ExtractedProject, BraveSearchResult } from '@/types/project';
 function getBraveKey(): string {
   const key = process.env.BRAVE_SEARCH_API_KEY;
   if (!key) throw new Error('BRAVE_SEARCH_API_KEY not configured');
-  return key;
-}
-
-function getKimiKey(): string {
-  const key = process.env.KIMI_API_KEY;
-  if (!key) throw new Error('KIMI_API_KEY not configured');
   return key;
 }
 
@@ -52,9 +48,10 @@ async function braveSearch(query: string, count: number = 10): Promise<BraveSear
   }));
 }
 
-async function extractWithKimi(results: BraveSearchResult[]): Promise<ExtractedProject[]> {
-  const KIMI_API_KEY = getKimiKey();
-
+/**
+ * 使用统一 LLM 客户端提取项目
+ */
+async function extractWithLLM(results: BraveSearchResult[]): Promise<ExtractedProject[]> {
   const prompt = `从以下搜索结果中提取 Web3 Hackathon / Builder Program / Grant 项目。
 
 要求:
@@ -77,35 +74,12 @@ ${JSON.stringify(results, null, 2)}
 
 只输出 JSON 数组，不要其他文字。`;
 
-  const response = await fetch('https://api.moonshot.ai/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${KIMI_API_KEY}`,
-    },
-    body: JSON.stringify({
-      model: 'kimi-k2-turbo-preview',
-      messages: [{ role: 'user', content: prompt }],
-      temperature: 0.3,
-    }),
-  });
-
-  if (!response.ok) throw new Error(`Kimi API: ${response.status}`);
-
-  const data = await response.json();
-  const content = data.choices?.[0]?.message?.content || '';
-
-  const startIdx = content.indexOf('[');
-  const endIdx = content.lastIndexOf(']');
+  const response = await callLLM(prompt, { temperature: 0.3 });
   
-  if (startIdx === -1 || endIdx === -1 || endIdx <= startIdx) {
-    console.log('Kimi response:', content);
-    return [];
-  }
-
   try {
-    return JSON.parse(content.slice(startIdx, endIdx + 1));
+    return extractJSON(response);
   } catch {
+    console.log('LLM extract failed, returning empty array');
     return [];
   }
 }
@@ -229,6 +203,7 @@ async function discoverNewDomains(allResults: BraveSearchResult[]): Promise<{
         });
         
         if (result.success) {
+          // 发送 Telegram 通知
           await sendCandidateForConfirmation({
             id: result.id!,
             domain: evaluation.domain,
@@ -238,6 +213,18 @@ async function discoverNewDomains(allResults: BraveSearchResult[]): Promise<{
             reasons: evaluation.reasons,
             foundOn: item.sampleUrl,
           });
+          
+          // 发送 Lark 通知
+          await sendLarkCandidateNotification({
+            id: result.id!,
+            domain: evaluation.domain,
+            name: evaluation.name,
+            track: evaluation.track,
+            score: evaluation.score,
+            reasons: evaluation.reasons,
+            foundOn: item.sampleUrl,
+          });
+          
           evaluated++;
         }
       }
@@ -274,18 +261,18 @@ async function runDiscovery(): Promise<{
 
   const { newDomains, evaluated } = await discoverNewDomains(unique);
 
-  console.log('Extracting projects with Kimi...');
+  console.log('Extracting projects with LLM...');
   let extracted: ExtractedProject[] = [];
   const maxToExtract = Math.min(unique.length, 30);
   
   for (let i = 0; i < maxToExtract; i += 10) {
     try {
       const batch = unique.slice(i, i + 10);
-      const projects = await extractWithKimi(batch);
+      const projects = await extractWithLLM(batch);
       extracted.push(...projects);
       await new Promise(r => setTimeout(r, 500));
     } catch (e) {
-      errors.push(`Kimi batch ${i}: ${e}`);
+      errors.push(`LLM batch ${i}: ${e}`);
     }
   }
 
@@ -357,10 +344,9 @@ export async function GET(request: Request) {
     });
 
     if (result.inserted > 0 || result.evaluated > 0) {
-      await sendSystemNotification(
-        'success', 
-        `发现完成\n新项目: ${result.inserted} 个\n新域名: ${result.newDomains} 个\n待确认: ${result.evaluated} 个`
-      );
+      const msg = `发现完成\n新项目: ${result.inserted} 个\n新域名: ${result.newDomains} 个\n待确认: ${result.evaluated} 个`;
+      await sendSystemNotification('success', msg);
+      await sendLarkNotification('success', msg);
     }
 
     return NextResponse.json({
@@ -379,7 +365,9 @@ export async function GET(request: Request) {
       errorMessage: String(error),
     });
     
-    await sendSystemNotification('error', `发现任务失败: ${error}`);
+    const msg = `发现任务失败: ${error}`;
+    await sendSystemNotification('error', msg);
+    await sendLarkNotification('error', msg);
 
     return NextResponse.json(
       { success: false, error: String(error), duration, timestamp: new Date().toISOString() },
