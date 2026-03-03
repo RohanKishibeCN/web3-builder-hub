@@ -1,14 +1,17 @@
 /**
- * Web3 Builder Hub - Daily Report V2 API
+ * Web3 Builder Hub - Daily Report V2 API（优化版）
  * 每日精选推送 - 只推送高质量项目（score >= 8.0）
  * 
  * GET /api/daily-report-v2 - 手动触发
  * Cron: 每天 08:00
+ * 
+ * 优化点：添加 Lark 推送
  */
 
 import { NextResponse } from 'next/server';
 import { getScoredProjects, getProjectStats } from '@/lib/db';
 import { sendDailyReport } from '@/lib/telegram';
+import { sendLarkDailyReport, sendLarkNotification } from '@/lib/lark';
 import type { DailyReportResponse } from '@/types/project';
 
 const MIN_SCORE = 8.0;
@@ -49,23 +52,40 @@ export async function GET(request: Request) {
     }));
 
     // 发送 Telegram 推送
-    const sent = await sendDailyReport(telegramProjects);
+    const telegramSent = await sendDailyReport(telegramProjects);
+    
+    // 发送 Lark 推送
+    const larkSent = await sendLarkDailyReport(telegramProjects);
+    
+    // 如果 Lark 推送失败，发送通知
+    if (!larkSent) {
+      await sendLarkNotification('warning', '每日报告 Lark 推送失败，请检查配置');
+    }
 
-    console.log('=== Daily Report V2 Completed ===', { sent, count: projects.length });
+    console.log('=== Daily Report V2 Completed ===', { 
+      telegramSent, 
+      larkSent, 
+      count: projects.length 
+    });
 
     const response: DailyReportResponse = {
       success: true,
-      sent,
+      sent: telegramSent,
       count: projects.length,
       stats,
     };
 
     return NextResponse.json({
       ...response,
+      telegramSent,
+      larkSent,
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
     console.error('Daily Report V2 error:', error);
+    
+    // 发送错误通知到 Lark
+    await sendLarkNotification('error', `每日报告失败: ${error}`);
 
     return NextResponse.json(
       { success: false, error: String(error), timestamp: new Date().toISOString() },
