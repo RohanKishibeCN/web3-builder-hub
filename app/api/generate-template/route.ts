@@ -1,20 +1,17 @@
 /**
- * Web3 Builder Hub - 代码模板生成 API（Phase 3）
+ * Web3 Builder Hub - 代码模板生成 API（Phase 3 优化版）
  * 根据项目类型生成 starter code
  * 
  * POST /api/generate-template
  * Body: { projectId: number, techStack?: string[] }
+ * 
+ * 优化点：使用统一 LLM 客户端和 extractJSON
  */
 
 import { NextResponse } from 'next/server';
 import { sql } from '@vercel/postgres';
+import { callLLM, extractJSON } from '@/lib/llm-client';
 import type { Project } from '@/types/project';
-
-function getKimiKey(): string {
-  const key = process.env.KIMI_API_KEY;
-  if (!key) throw new Error('KIMI_API_KEY not configured');
-  return key;
-}
 
 async function getProjectById(id: number): Promise<Project | null> {
   const result = await sql`SELECT * FROM projects WHERE id = ${id}`;
@@ -37,7 +34,7 @@ async function getProjectById(id: number): Promise<Project | null> {
   };
 }
 
-async function generateTemplateWithKimi(
+async function generateTemplateWithLLM(
   project: Project,
   techStack?: string[]
 ): Promise<{
@@ -45,8 +42,6 @@ async function generateTemplateWithKimi(
   fileStructure: string[];
   keyFiles: Array<{ path: string; content: string }>;
 }> {
-  const KIMI_API_KEY = getKimiKey();
-  
   const deepDive = project.deepDiveResult;
   const stack = techStack || deepDive?.suggestedTechStack || ['Solidity', 'React', 'Ethers.js'];
   
@@ -80,44 +75,14 @@ MVP 计划:
 
 只输出 JSON，不要其他文字。`;
 
-  const response = await fetch('https://api.moonshot.ai/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${KIMI_API_KEY}`,
-    },
-    body: JSON.stringify({
-      model: 'kimi-k2-turbo-preview',
-      messages: [{ role: 'user', content: prompt }],
-      temperature: 0.5,
-    }),
-  });
-
-  if (!response.ok) {
-    throw new Error(`Kimi API: ${response.status}`);
-  }
-
-  const data = await response.json();
-  const content = data.choices?.[0]?.message?.content || '';
+  const response = await callLLM(prompt, { temperature: 0.5 });
   
-  // 提取 JSON
-  const startIdx = content.indexOf('{');
-  const endIdx = content.lastIndexOf('}');
-  
-  if (startIdx === -1 || endIdx === -1 || endIdx <= startIdx) {
+  try {
+    return extractJSON(response);
+  } catch {
     // 返回默认模板
     return {
       readme: `# ${project.title}\n\n${project.summary}\n\n## Setup\n\n\`\`\`bash\nnpm install\n\`\`\``, 
-      fileStructure: ['README.md'],
-      keyFiles: [],
-    };
-  }
-
-  try {
-    return JSON.parse(content.slice(startIdx, endIdx + 1));
-  } catch {
-    return {
-      readme: `# ${project.title}\n\n${project.summary}`,
       fileStructure: ['README.md'],
       keyFiles: [],
     };
@@ -149,7 +114,7 @@ export async function POST(request: Request) {
     }
 
     // 生成代码模板
-    const template = await generateTemplateWithKimi(project, techStack);
+    const template = await generateTemplateWithLLM(project, techStack);
 
     const duration = Date.now() - startTime;
 
