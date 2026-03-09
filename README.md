@@ -75,6 +75,49 @@ await sendLarkDailyReport(projects);
 LARK_WEBHOOK_URL=https://open.feishu.cn/open-apis/bot/v2/hook/xxx
 ```
 
+
+## QQ Bot 配置
+
+### 1. 在 QQ 开放平台创建机器人
+
+1. 访问 [QQ 开放平台](https://q.qq.com/)
+2. 注册开发者账号
+3. 创建机器人应用，获取：
+   - **AppID**
+   - **AppSecret**
+
+### 2. 配置环境变量
+
+```bash
+QQ_APP_ID=your_qq_app_id
+QQ_APP_SECRET=your_qq_app_secret
+QQ_TARGET_TYPE=group  # channel | group | c2c
+QQ_TARGET_ID=your_target_id
+QQ_USE_SANDBOX=false  # 开发时设为 true
+```
+
+### 3. 配置回调地址
+
+在 QQ 开放平台 → 机器人 → 开发设置 → 回调地址：
+```
+https://your-domain.com/api/qq-webhook
+```
+
+### 4. 邀请机器人加入群/频道
+
+- **群聊**: 在 QQ 群设置中添加机器人
+- **频道**: 在频道设置中邀请机器人
+
+### 5. 使用指令
+
+在群/频道中发送：
+- `GO <projectId>` - 生成申请文案
+- `CODE <projectId>` - 生成代码模板
+- `CONFIRM <id>` - 确认加入白名单
+- `REJECT <id>` - 拒绝加入白名单
+
+---
+
 ## 快速开始
 
 ### 1. 安装依赖
