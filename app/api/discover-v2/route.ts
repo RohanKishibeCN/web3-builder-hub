@@ -7,6 +7,7 @@ import {
 } from '@/lib/db';
 import { sendSystemNotification, sendCandidateForConfirmation } from '@/lib/telegram';
 import { sendLarkNotification, sendLarkCandidateNotification } from '@/lib/lark';
+import { sendQQNotification, sendQQCandidateNotification } from '@/lib/qqbot';
 import { evaluateDomain, quickEvaluate } from '@/lib/domain-evaluator';
 import { callLLM, extractJSON } from '@/lib/llm-client';
 import { 
@@ -24,6 +25,10 @@ function getBraveKey(): string {
   if (!key) throw new Error('BRAVE_SEARCH_API_KEY not configured');
   return key;
 }
+
+// QQ Bot 配置
+const QQ_TARGET_ID = process.env.QQ_TARGET_ID;
+const QQ_TARGET_TYPE = (process.env.QQ_TARGET_TYPE || 'group') as 'channel' | 'group' | 'c2c';
 
 async function braveSearch(query: string, count: number = 10): Promise<BraveSearchResult[]> {
   const BRAVE_API_KEY = getBraveKey();
@@ -48,9 +53,6 @@ async function braveSearch(query: string, count: number = 10): Promise<BraveSear
   }));
 }
 
-/**
- * 使用统一 LLM 客户端提取项目
- */
 async function extractWithLLM(results: BraveSearchResult[]): Promise<ExtractedProject[]> {
   const prompt = `从以下搜索结果中提取 Web3 Hackathon / Builder Program / Grant 项目。
 
@@ -75,11 +77,10 @@ ${JSON.stringify(results, null, 2)}
 只输出 JSON 数组，不要其他文字。`;
 
   const response = await callLLM(prompt, { temperature: 0.3 });
-  
+
   try {
     return extractJSON(response);
   } catch {
-    console.log('LLM extract failed, returning empty array');
     return [];
   }
 }
@@ -88,7 +89,7 @@ async function searchFixedWhitelist(): Promise<BraveSearchResult[]> {
   console.log('Searching fixed whitelist...');
   const results: BraveSearchResult[] = [];
   const queries = getSearchQueries();
-  
+
   for (const query of queries) {
     try {
       const batch = await braveSearch(query, 5);
@@ -98,7 +99,7 @@ async function searchFixedWhitelist(): Promise<BraveSearchResult[]> {
       console.error(`Search error for "${query}":`, e);
     }
   }
-  
+
   return results;
 }
 
@@ -106,7 +107,7 @@ async function searchDynamicWhitelist(): Promise<BraveSearchResult[]> {
   console.log('Searching dynamic whitelist...');
   const dynamicDomains = await getDynamicWhitelist();
   const results: BraveSearchResult[] = [];
-  
+
   for (const domain of dynamicDomains.slice(0, 10)) {
     try {
       const queries = [
@@ -114,7 +115,7 @@ async function searchDynamicWhitelist(): Promise<BraveSearchResult[]> {
         `site:${domain} builder program`,
         `site:${domain} grant`,
       ];
-      
+
       for (const query of queries) {
         const batch = await braveSearch(query, 3);
         results.push(...batch);
@@ -124,7 +125,7 @@ async function searchDynamicWhitelist(): Promise<BraveSearchResult[]> {
       console.error(`Dynamic search error for ${domain}:`, e);
     }
   }
-  
+
   return results;
 }
 
@@ -138,22 +139,22 @@ async function discoverNewDomains(allResults: BraveSearchResult[]): Promise<{
   evaluated: number;
 }> {
   console.log('Discovering new domains...');
-  
+
   const domainMap = new Map<string, { title: string; description: string; url: string }>();
-  
+
   for (const result of allResults) {
     try {
       const hostname = new URL(result.url).hostname.toLowerCase();
-      
+
       if (STATIC_WHITELIST.some(d => hostname === d || hostname.endsWith(`.${d}`))) {
         continue;
       }
-      
+
       const dynamicWhitelist = await getDynamicWhitelist();
       if (dynamicWhitelist.some(d => hostname === d || hostname.endsWith(`.${d}`))) {
         continue;
       }
-      
+
       if (!domainMap.has(hostname)) {
         domainMap.set(hostname, {
           title: result.title,
@@ -165,26 +166,26 @@ async function discoverNewDomains(allResults: BraveSearchResult[]): Promise<{
       // 无效 URL，跳过
     }
   }
-  
+
   const newDomains = Array.from(domainMap.entries()).map(([domain, info]) => ({
     domain,
     title: info.title,
     description: info.description,
     sampleUrl: info.url,
   }));
-  
+
   console.log(`Found ${newDomains.length} potential new domains`);
-  
+
   const promisingDomains = newDomains.filter(d => {
     const eval_result = quickEvaluate(d.domain, `${d.title} ${d.description}`);
     return eval_result.shouldConsider || eval_result.track === 'AI' || eval_result.track === 'Infra';
   });
-  
+
   console.log(`Promising domains after quick filter: ${promisingDomains.length}`);
-  
+
   const toEvaluate = promisingDomains.slice(0, 5);
   let evaluated = 0;
-  
+
   for (const item of toEvaluate) {
     try {
       const evaluation = await evaluateDomain(item.domain, {
@@ -192,7 +193,7 @@ async function discoverNewDomains(allResults: BraveSearchResult[]): Promise<{
         description: item.description,
         foundOn: item.sampleUrl,
       });
-      
+
       if (evaluation && evaluation.shouldAdd && evaluation.score >= 60) {
         const result = await addCandidateDomain({
           domain: evaluation.domain,
@@ -201,7 +202,7 @@ async function discoverNewDomains(allResults: BraveSearchResult[]): Promise<{
           priority: evaluation.priority,
           sourceUrl: item.sampleUrl,
         });
-        
+
         if (result.success) {
           // 发送 Telegram 通知
           await sendCandidateForConfirmation({
@@ -213,7 +214,7 @@ async function discoverNewDomains(allResults: BraveSearchResult[]): Promise<{
             reasons: evaluation.reasons,
             foundOn: item.sampleUrl,
           });
-          
+
           // 发送 Lark 通知
           await sendLarkCandidateNotification({
             id: result.id!,
@@ -224,17 +225,30 @@ async function discoverNewDomains(allResults: BraveSearchResult[]): Promise<{
             reasons: evaluation.reasons,
             foundOn: item.sampleUrl,
           });
-          
+
+          // 发送 QQ 通知
+          if (QQ_TARGET_ID) {
+            await sendQQCandidateNotification(QQ_TARGET_ID, QQ_TARGET_TYPE, {
+              id: result.id!,
+              domain: evaluation.domain,
+              name: evaluation.name,
+              track: evaluation.track,
+              score: evaluation.score,
+              reasons: evaluation.reasons,
+              foundOn: item.sampleUrl,
+            });
+          }
+
           evaluated++;
         }
       }
-      
+
       await new Promise(r => setTimeout(r, 500));
     } catch (e) {
       console.error(`Evaluate domain error for ${item.domain}:`, e);
     }
   }
-  
+
   return { newDomains, evaluated };
 }
 
@@ -264,7 +278,7 @@ async function runDiscovery(): Promise<{
   console.log('Extracting projects with LLM...');
   let extracted: ExtractedProject[] = [];
   const maxToExtract = Math.min(unique.length, 30);
-  
+
   for (let i = 0; i < maxToExtract; i += 10) {
     try {
       const batch = unique.slice(i, i + 10);
@@ -316,10 +330,10 @@ async function runDiscovery(): Promise<{
 
 export async function GET(request: Request) {
   const startTime = Date.now();
-  
+
   const authHeader = request.headers.get('authorization');
   const cronSecret = process.env.CRON_SECRET;
-  
+
   if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
     const url = new URL(request.url);
     if (!url.hostname.includes('localhost') && !url.hostname.includes('127.0.0.1')) {
@@ -332,7 +346,7 @@ export async function GET(request: Request) {
   try {
     const result = await runDiscovery();
     const duration = Date.now() - startTime;
-    
+
     console.log('=== Discover V2 Completed ===', result, `Duration: ${duration}ms`);
 
     await logApiCall({
@@ -345,8 +359,21 @@ export async function GET(request: Request) {
 
     if (result.inserted > 0 || result.evaluated > 0) {
       const msg = `发现完成\n新项目: ${result.inserted} 个\n新域名: ${result.newDomains} 个\n待确认: ${result.evaluated} 个`;
-      await sendSystemNotification('success', msg);
-      await sendLarkNotification('success', msg);
+
+      // Telegram 通知
+      if (process.env.TELEGRAM_BOT_TOKEN) {
+        await sendSystemNotification('success', msg);
+      }
+
+      // Lark 通知
+      if (process.env.LARK_WEBHOOK_URL) {
+        await sendLarkNotification('success', msg);
+      }
+
+      // QQ 通知
+      if (QQ_TARGET_ID) {
+        await sendQQNotification(QQ_TARGET_ID, QQ_TARGET_TYPE, 'success', msg);
+      }
     }
 
     return NextResponse.json({
@@ -357,17 +384,25 @@ export async function GET(request: Request) {
   } catch (error) {
     const duration = Date.now() - startTime;
     console.error('Discover V2 error:', error);
-    
+
     await logApiCall({
       apiName: 'discover-v2',
       status: 'error',
       durationMs: duration,
       errorMessage: String(error),
     });
-    
+
     const msg = `发现任务失败: ${error}`;
-    await sendSystemNotification('error', msg);
-    await sendLarkNotification('error', msg);
+
+    if (process.env.TELEGRAM_BOT_TOKEN) {
+      await sendSystemNotification('error', msg);
+    }
+    if (process.env.LARK_WEBHOOK_URL) {
+      await sendLarkNotification('error', msg);
+    }
+    if (QQ_TARGET_ID) {
+      await sendQQNotification(QQ_TARGET_ID, QQ_TARGET_TYPE, 'error', msg);
+    }
 
     return NextResponse.json(
       { success: false, error: String(error), duration, timestamp: new Date().toISOString() },
