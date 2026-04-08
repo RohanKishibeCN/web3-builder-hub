@@ -95,7 +95,10 @@ ${tweetsContext.slice(0, 15000)}
     const result = await callLLMObject<{ projects: ExtractedProject[] }>(
       prompt, 
       ExtractedProjectsSchema, 
-      { temperature: 0.2 }
+      { 
+        temperature: 0.2,
+        model: 'kimi-k2-turbo-preview' // 高速版本，处理大量短文本推文抽取
+      }
     );
     return result.projects;
   } catch (error) {

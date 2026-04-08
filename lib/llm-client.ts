@@ -36,12 +36,14 @@ function getLanguageModel(options: CallLLMOptions = {}) {
     const apiKey = process.env.LLM_API_KEY || process.env.KIMI_API_KEY;
     if (!apiKey) throw new Error('KIMI_API_KEY or LLM_API_KEY is not set');
     
+    // 使用 Kimi 国际版 API 端点
     const kimi = createOpenAI({
       baseURL: 'https://api.moonshot.ai/v1',
       apiKey,
     });
     
-    return kimi(options.model || process.env.KIMI_MODEL || 'moonshot-v1-32k');
+    // 如果没有传入模型，默认使用 kimi-k2.5 (最智能的旗舰模型)
+    return kimi(options.model || process.env.KIMI_MODEL || 'kimi-k2.5');
   } 
   
   // 默认回退或显式指定 openai

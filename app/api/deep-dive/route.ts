@@ -80,7 +80,14 @@ ${content.slice(0, 15000)}
 5. 规则清晰度 (clarity_score): 文档完备、规则清晰、利于Agent自动生成代码得分高。`;
 
   try {
-    const parsed = await callLLMObject<DeepDiveResult>(prompt, DeepDiveSchema, { temperature: 0.4 });
+    const parsed = await callLLMObject<DeepDiveResult>(
+      prompt, 
+      DeepDiveSchema, 
+      { 
+        temperature: 0.4,
+        model: 'kimi-k2.5' // Kimi 最智能的模型，负责深度研判与 MVP 规划
+      }
+    );
     return parsed;
   } catch (error) {
     console.error('LLM Analysis Error:', error);
