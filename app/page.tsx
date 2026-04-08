@@ -30,7 +30,7 @@ export default async function Home() {
       score::text as score_text
     FROM projects 
     ORDER BY 
-      CASE WHEN score IS NOT NULL THEN (score->>'total_score')::float ELSE 0 END DESC,
+      CASE WHEN score IS NOT NULL THEN ((score->>'total_score')::float) ELSE 0 END DESC,
       discovered_at DESC 
     LIMIT 50
   `;

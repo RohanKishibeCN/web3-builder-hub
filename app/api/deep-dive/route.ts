@@ -70,7 +70,7 @@ async function analyzeWithLLM(project: Project, content: string): Promise<DeepDi
 - 截止: ${project.deadline || '滚动申请'}
 
 网页内容:
-${content.slice(0, 30000)}
+${content.slice(0, 15000)}
 
 打分标准 (1-10分):
 1. 奖金吸引力 (prize_score): 总奖池大、下限高、发放稳定币得分高。
@@ -173,8 +173,7 @@ export async function GET(request: Request) {
   const cronSecret = process.env.CRON_SECRET;
   
   if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
-    const url = new URL(request.url);
-    if (!url.hostname.includes('localhost') && !url.hostname.includes('127.0.0.1')) {
+    if (process.env.NODE_ENV === 'production') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
   }

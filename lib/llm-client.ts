@@ -41,7 +41,7 @@ function getLanguageModel(options: CallLLMOptions = {}) {
       apiKey,
     });
     
-    return kimi(options.model || process.env.KIMI_MODEL || 'moonshot-v1-8k');
+    return kimi(options.model || process.env.KIMI_MODEL || 'moonshot-v1-32k');
   } 
   
   // 默认回退或显式指定 openai

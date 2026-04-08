@@ -39,7 +39,7 @@ export async function initDB(): Promise<{ success: boolean; message: string }> {
 
       // 创建索引
       await sql`CREATE INDEX idx_projects_status ON projects(status);`;
-      await sql`CREATE INDEX idx_projects_score ON projects((score->>'total_score'));`;
+      await sql`CREATE INDEX idx_projects_score ON projects(((score->>'total_score')::float));`;
       await sql`CREATE INDEX idx_projects_discovered_at ON projects(discovered_at);`;
     }
 

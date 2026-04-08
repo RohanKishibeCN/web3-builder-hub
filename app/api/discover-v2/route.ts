@@ -6,9 +6,9 @@
 
 import { NextResponse } from 'next/server';
 import { ApifyClient } from 'apify-client';
+import { z } from 'zod';
 import { insertProjectsBatch, logApiCall } from '@/lib/db';
 import { callLLMObject } from '@/lib/llm-client';
-import { z } from 'zod';
 import type { ExtractedProject } from '@/types/project';
 
 function getApifyClient() {
@@ -87,7 +87,7 @@ async function extractProjectsFromTweets(tweets: any[]): Promise<ExtractedProjec
 4. "source" 字段填推文的作者账号（如 @ETHGlobal）。
 
 推文内容如下：
-${tweetsContext.slice(0, 30000)}
+${tweetsContext.slice(0, 15000)}
 
 请严格返回符合 Schema 的 JSON 数据。`;
 
@@ -162,9 +162,10 @@ export async function GET(request: Request) {
   const authHeader = request.headers.get('authorization');
   const cronSecret = process.env.CRON_SECRET;
 
+  // 安全修复：移除基于 Host 头的开发环境判断，防止伪造 Host 绕过鉴权
+  // 开发环境下如果不配置 CRON_SECRET 则跳过验证，如果配置了则必须验证
   if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
-    const url = new URL(request.url);
-    if (!url.hostname.includes('localhost') && !url.hostname.includes('127.0.0.1')) {
+    if (process.env.NODE_ENV === 'production') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
   }

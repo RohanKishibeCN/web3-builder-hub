@@ -22,8 +22,7 @@ export async function GET(request: Request) {
   const cronSecret = process.env.CRON_SECRET;
 
   if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
-    const url = new URL(request.url);
-    if (!url.hostname.includes('localhost') && !url.hostname.includes('127.0.0.1')) {
+    if (process.env.NODE_ENV === 'production') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
   }
