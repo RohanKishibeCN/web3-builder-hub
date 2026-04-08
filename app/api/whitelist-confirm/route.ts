@@ -8,7 +8,6 @@
 
 import { NextResponse } from 'next/server';
 import { confirmCandidate } from '@/lib/db';
-import { sendWhitelistUpdateNotification } from '@/lib/telegram';
 
 export async function POST(request: Request) {
   try {
@@ -37,7 +36,7 @@ export async function POST(request: Request) {
 
     // 发送通知
     // 注意：这里需要查询数据库获取 domain 和 name
-    // await sendWhitelistUpdateNotification(action, domain, name);
+    // (已在 Phase 1 移除 Telegram 通知)
 
     return NextResponse.json({
       success: true,

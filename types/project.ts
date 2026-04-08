@@ -15,10 +15,11 @@ export type ProjectStatus =
 
 export interface BaseScore {
   total_score: number;
-  prize_score: number;
-  urgency_score: number;
-  quality_score: number;
-  builder_match: number;
+  prize_score: number;      // 奖金吸引力
+  time_roi_score: number;   // 时间性价比
+  competition_score: number;// 竞争烈度估算
+  trend_score: number;      // 赛道风口
+  clarity_score: number;    // 规则清晰度
   reason: string;
 }
 

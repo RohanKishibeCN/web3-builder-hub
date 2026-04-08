@@ -5,9 +5,6 @@ import {
   addCandidateDomain,
   getDynamicWhitelist 
 } from '@/lib/db';
-import { sendSystemNotification, sendCandidateForConfirmation } from '@/lib/telegram';
-import { sendLarkNotification, sendLarkCandidateNotification } from '@/lib/lark';
-import { sendQQNotification, sendQQCandidateNotification } from '@/lib/qqbot';
 import { evaluateDomain, quickEvaluate } from '@/lib/domain-evaluator';
 import { callLLM, extractJSON } from '@/lib/llm-client';
 import { 
@@ -204,41 +201,6 @@ async function discoverNewDomains(allResults: BraveSearchResult[]): Promise<{
         });
 
         if (result.success) {
-          // 发送 Telegram 通知
-          await sendCandidateForConfirmation({
-            id: result.id!,
-            domain: evaluation.domain,
-            name: evaluation.name,
-            track: evaluation.track,
-            score: evaluation.score,
-            reasons: evaluation.reasons,
-            foundOn: item.sampleUrl,
-          });
-
-          // 发送 Lark 通知
-          await sendLarkCandidateNotification({
-            id: result.id!,
-            domain: evaluation.domain,
-            name: evaluation.name,
-            track: evaluation.track,
-            score: evaluation.score,
-            reasons: evaluation.reasons,
-            foundOn: item.sampleUrl,
-          });
-
-          // 发送 QQ 通知
-          if (QQ_TARGET_ID) {
-            await sendQQCandidateNotification(QQ_TARGET_ID, QQ_TARGET_TYPE, {
-              id: result.id!,
-              domain: evaluation.domain,
-              name: evaluation.name,
-              track: evaluation.track,
-              score: evaluation.score,
-              reasons: evaluation.reasons,
-              foundOn: item.sampleUrl,
-            });
-          }
-
           evaluated++;
         }
       }
@@ -359,21 +321,7 @@ export async function GET(request: Request) {
 
     if (result.inserted > 0 || result.evaluated > 0) {
       const msg = `发现完成\n新项目: ${result.inserted} 个\n新域名: ${result.newDomains} 个\n待确认: ${result.evaluated} 个`;
-
-      // Telegram 通知
-      if (process.env.TELEGRAM_BOT_TOKEN) {
-        await sendSystemNotification('success', msg);
-      }
-
-      // Lark 通知
-      if (process.env.LARK_WEBHOOK_URL) {
-        await sendLarkNotification('success', msg);
-      }
-
-      // QQ 通知
-      if (QQ_TARGET_ID) {
-        await sendQQNotification(QQ_TARGET_ID, QQ_TARGET_TYPE, 'success', msg);
-      }
+      console.log(msg);
     }
 
     return NextResponse.json({
@@ -393,16 +341,7 @@ export async function GET(request: Request) {
     });
 
     const msg = `发现任务失败: ${error}`;
-
-    if (process.env.TELEGRAM_BOT_TOKEN) {
-      await sendSystemNotification('error', msg);
-    }
-    if (process.env.LARK_WEBHOOK_URL) {
-      await sendLarkNotification('error', msg);
-    }
-    if (QQ_TARGET_ID) {
-      await sendQQNotification(QQ_TARGET_ID, QQ_TARGET_TYPE, 'error', msg);
-    }
+    console.error(msg);
 
     return NextResponse.json(
       { success: false, error: String(error), duration, timestamp: new Date().toISOString() },

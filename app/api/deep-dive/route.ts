@@ -5,13 +5,12 @@
  * GET /api/deep-dive?limit=10 - 手动触发
  * Cron: 每天 23:00
  * 
- * 优化点：使用统一 LLM 客户端，添加 Lark 通知
+ * 优化点：使用 Vercel AI SDK 强化 JSON 输出，调整评分维度。
  */
 
 import { NextResponse } from 'next/server';
-import { sendSystemNotification } from '@/lib/telegram';
-import { sendLarkNotification } from '@/lib/lark';
-import { callLLM, extractJSON } from '@/lib/llm-client';
+import { callLLMObject } from '@/lib/llm-client';
+import { z } from 'zod';
 import type { Project, DeepDiveResult, DeepDiveResponse } from '@/types/project';
 import { getPendingDeepDiveProjects, updateProjectStatus, logApiCall } from '@/lib/db';
 
@@ -35,8 +34,34 @@ async function extractContent(url: string): Promise<string> {
 
 // ==================== LLM 分析 ====================
 
+const DeepDiveSchema = z.object({
+  score: z.object({
+    total_score: z.number().min(1).max(10).describe('综合总分(1-10)'),
+    prize_score: z.number().min(1).max(10).describe('奖金吸引力(1-10)'),
+    time_roi_score: z.number().min(1).max(10).describe('时间性价比(1-10)'),
+    competition_score: z.number().min(1).max(10).describe('竞争烈度估算(1-10)'),
+    trend_score: z.number().min(1).max(10).describe('赛道风口(1-10)'),
+    clarity_score: z.number().min(1).max(10).describe('规则清晰度(1-10)'),
+    reason: z.string().describe('简短中文评价(50字内)')
+  }),
+  trackPotential: z.string().describe('赛道潜力分析(50字内)'),
+  suggestedTrack: z.string().describe('建议参与的具体赛道'),
+  winProbability: z.number().min(0).max(100).describe('预计获奖率(0-100)'),
+  participationPlan: z.string().describe('500字参与计划'),
+  suggestedTechStack: z.array(z.string()).describe('推荐技术栈'),
+  differentiation: z.string().describe('差异化点(100字内)'),
+  mvpTimeline: z.object({
+    day1: z.string(),
+    day2: z.string(),
+    day3: z.string()
+  }),
+  riskFlags: z.array(z.string()).optional(),
+  isSuspicious: z.boolean().optional(),
+  suspicionReason: z.string().optional()
+});
+
 async function analyzeWithLLM(project: Project, content: string): Promise<DeepDiveResult | null> {
-  const prompt = `作为 Web3 Builder 专家，深度分析以下项目。
+  const prompt = `作为 Web3 Agentic Coder 专家，深度分析以下黑客松/开发者资助项目。
 
 项目信息:
 - 名称: ${project.title}
@@ -45,54 +70,20 @@ async function analyzeWithLLM(project: Project, content: string): Promise<DeepDi
 - 截止: ${project.deadline || '滚动申请'}
 
 网页内容:
-${content.slice(0, 6000)}
+${content.slice(0, 30000)}
 
-输出严格的 JSON:
-{
-  "score": {
-    "total_score": 1-10,
-    "prize_score": 1-10,
-    "urgency_score": 1-10,
-    "quality_score": 1-10,
-    "builder_match": 1-10,
-    "reason": "简短中文评价"
-  },
-  "trackPotential": "赛道潜力（50字内）",
-  "suggestedTrack": "建议赛道",
-  "winProbability": 0-100,
-  "participationPlan": "500字参与计划",
-  "suggestedTechStack": ["技术1", "技术2"],
-  "differentiation": "差异化点（100字内）",
-  "mvpTimeline": {
-    "day1": "第一天任务",
-    "day2": "第二天任务",
-    "day3": "第三天任务"
-  },
-  "riskFlags": ["风险1"],
-  "isSuspicious": false,
-  "suspicionReason": ""
-}
-
-只输出 JSON，不要其他文字。`;
+打分标准 (1-10分):
+1. 奖金吸引力 (prize_score): 总奖池大、下限高、发放稳定币得分高。
+2. 时间性价比 (time_roi_score): MVP开发周期短、提交门槛低、投入产出比高得分高。
+3. 竞争烈度估算 (competition_score): 蓝海公链、冷门但有实力的项目得分高；卷王云集的头部赛事适度降分。
+4. 赛道风口 (trend_score): 契合当前AI+Crypto, DePIN, Bitcoin L2等热门叙事得分高。
+5. 规则清晰度 (clarity_score): 文档完备、规则清晰、利于Agent自动生成代码得分高。`;
 
   try {
-    const response = await callLLM(prompt, { temperature: 0.4 });
-    const parsed = extractJSON(response);
-    
-    return {
-      score: parsed.score,
-      trackPotential: parsed.trackPotential || '',
-      suggestedTrack: parsed.suggestedTrack || '',
-      winProbability: parsed.winProbability || 0,
-      participationPlan: parsed.participationPlan || '',
-      suggestedTechStack: parsed.suggestedTechStack || [],
-      differentiation: parsed.differentiation || '',
-      mvpTimeline: parsed.mvpTimeline || { day1: '', day2: '', day3: '' },
-      riskFlags: parsed.riskFlags || [],
-      isSuspicious: parsed.isSuspicious || false,
-      suspicionReason: parsed.suspicionReason || '',
-    };
-  } catch {
+    const parsed = await callLLMObject<DeepDiveResult>(prompt, DeepDiveSchema, { temperature: 0.4 });
+    return parsed;
+  } catch (error) {
+    console.error('LLM Analysis Error:', error);
     return null;
   }
 }
@@ -117,6 +108,7 @@ async function processProject(project: Project): Promise<{
     );
 
     if (!analysis) {
+      // 记录错误但继续，可能要增加一个 failed 状态或 retry 计数器
       return { success: false, error: 'LLM analysis failed' };
     }
 
@@ -163,6 +155,8 @@ async function runDeepDive(limit: number): Promise<DeepDiveResponse> {
     } else {
       result.failed++;
       result.errors.push(`${project.title}: ${r.error}`);
+      // 失败也更新状态防止死循环
+      await updateProjectStatus(project.id, 'archived');
     }
 
     await new Promise(r => setTimeout(r, 1000));
@@ -195,11 +189,13 @@ export async function GET(request: Request) {
     const result = await runDeepDive(limit);
     console.log('=== Deep Dive Completed ===', result);
 
-    if (result.highScore > 0) {
-      const msg = `深度研判完成\n处理: ${result.processed} 个\n高分: ${result.highScore} 个`;
-      await sendSystemNotification('success', msg);
-      await sendLarkNotification('success', msg);
-    }
+    await logApiCall({
+      apiName: 'deep-dive',
+      status: 'success',
+      durationMs: 0, // 可以加上计时器
+      found: result.processed,
+      inserted: result.successCount,
+    });
 
     return NextResponse.json({
       ...result,
@@ -207,9 +203,13 @@ export async function GET(request: Request) {
     });
   } catch (error) {
     console.error('Deep Dive error:', error);
-    const msg = `深度研判失败: ${error}`;
-    await sendSystemNotification('error', msg);
-    await sendLarkNotification('error', msg);
+    
+    await logApiCall({
+      apiName: 'deep-dive',
+      status: 'error',
+      durationMs: 0,
+      errorMessage: String(error),
+    });
 
     return NextResponse.json(
       { success: false, error: String(error), timestamp: new Date().toISOString() },

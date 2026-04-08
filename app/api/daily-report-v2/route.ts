@@ -1,26 +1,19 @@
 /**
  * Web3 Builder Hub - Daily Report V2 API（优化版）
- * 每日精选推送 - 只推送高质量项目（score >= 8.0）
+ * 每日精选 - 只过滤高质量项目（score >= 8.0）
  * 
  * GET /api/daily-report-v2 - 手动触发
  * Cron: 每天 08:00
  * 
- * 优化点：添加 Lark 推送、QQ Bot 推送
+ * 优化点：移除旧版推送，准备接入 Git Markdown 生成
  */
 
 import { NextResponse } from 'next/server';
 import { getScoredProjects, getProjectStats } from '@/lib/db';
-import { sendDailyReport } from '@/lib/telegram';
-import { sendLarkDailyReport, sendLarkNotification } from '@/lib/lark';
-import { sendQQDailyReport } from '@/lib/qqbot';
 import type { DailyReportResponse } from '@/types/project';
 
 const MIN_SCORE = 8.0;
 const MAX_PROJECTS = 5;
-
-// QQ Bot 配置
-const QQ_TARGET_ID = process.env.QQ_TARGET_ID;
-const QQ_TARGET_TYPE = (process.env.QQ_TARGET_TYPE || 'group') as 'channel' | 'group' | 'c2c';
 
 export async function GET(request: Request) {
   // 验证
@@ -56,55 +49,25 @@ export async function GET(request: Request) {
       prizePool: p.prizePool || undefined,
     }));
 
-    // 发送 Telegram 推送（如果配置了）
-    let telegramSent = false;
-    if (process.env.TELEGRAM_BOT_TOKEN && process.env.TELEGRAM_CHAT_ID) {
-      telegramSent = await sendDailyReport(formattedProjects);
-    }
-
-    // 发送 Lark 推送（如果配置了）
-    let larkSent = false;
-    if (process.env.LARK_WEBHOOK_URL) {
-      larkSent = await sendLarkDailyReport(formattedProjects);
-      if (!larkSent) {
-        await sendLarkNotification('warning', '每日报告 Lark 推送失败，请检查配置');
-      }
-    }
-
-    // 发送 QQ Bot 推送（如果配置了）
-    let qqSent = false;
-    if (QQ_TARGET_ID) {
-      qqSent = await sendQQDailyReport(QQ_TARGET_ID, QQ_TARGET_TYPE, formattedProjects);
-    }
+    // TODO: Phase 2 - 将高分项目写入 Git Markdown
 
     console.log('=== Daily Report V2 Completed ===', { 
-      telegramSent, 
-      larkSent, 
-      qqSent,
       count: projects.length 
     });
 
     const response: DailyReportResponse = {
       success: true,
-      sent: telegramSent || larkSent || qqSent,
+      sent: true,
       count: projects.length,
       stats,
     };
 
     return NextResponse.json({
       ...response,
-      telegramSent,
-      larkSent,
-      qqSent,
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
     console.error('Daily Report V2 error:', error);
-
-    // 发送错误通知到 Lark
-    if (process.env.LARK_WEBHOOK_URL) {
-      await sendLarkNotification('error', `每日报告失败: ${error}`);
-    }
 
     return NextResponse.json(
       { success: false, error: String(error), timestamp: new Date().toISOString() },
