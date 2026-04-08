@@ -87,8 +87,21 @@ ${content.slice(0, 15000)}
 4. 竞争烈度估算 (competition_score): 蓝海公链、冷门但有实力的项目得分高；卷王云集的头部赛事适度降分。
 5. 赛道风口 (trend_score): 契合当前AI+Crypto, DePIN, Bitcoin L2等热门叙事得分高。
 6. 规则清晰度 (clarity_score): 文档完备、规则清晰、利于Agent自动生成代码得分高。
+7. 简短中文评价 (reason): 对该项目的整体评价(50字内)。
 
-请额外充当资深 Web3 产品经理，结合项目要求，提供 3 个极具竞争力的具体项目创意 (projectIdeas)。每个创意必须包含名称、产品形态和获胜理由。`;
+除打分外，你必须提供以下关键分析信息：
+- 赛道潜力分析 (trackPotential): 50字以内。
+- 建议参与的具体赛道 (suggestedTrack): 简明扼要。
+- 预计获奖率 (winProbability): 0到100的数字。
+- 500字参与计划 (participationPlan): 详细方案。
+- 推荐技术栈 (suggestedTechStack): 字符串数组。
+- 差异化点 (differentiation): 100字以内说明为何与众不同。
+- 3天MVP开发时间线 (mvpTimeline): 必须包含 day1, day2, day3 三个键名。
+
+最后，请额外充当资深 Web3 产品经理，结合项目要求，提供 3 个极具竞争力的具体项目创意 (projectIdeas)。
+每个创意必须包含：名称 (name)、产品形态 (description) 和获胜理由 (whyItWins)。
+
+注意：所有分数 (score.*) 和获奖率 (winProbability) 字段必须输出纯数字（例如 8 或 80），严禁包含“分”、“%”等任何单位或符号。`;
 
   try {
     const parsed = await callLLMObject<DeepDiveResult>(
