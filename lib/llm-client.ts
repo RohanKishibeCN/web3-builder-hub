@@ -6,6 +6,7 @@
 
 import { generateText, generateObject } from 'ai';
 import { createOpenAI } from '@ai-sdk/openai';
+import zodToJsonSchema from 'zod-to-json-schema';
 
 type MessageRole = 'system' | 'user' | 'assistant';
 type BasicMessage = { role: MessageRole; content: string };
@@ -153,10 +154,18 @@ export async function callLLMObject<T>(
 
   if (provider === 'kimi') {
     // Kimi does not support Vercel AI SDK's `generateObject` schema enforcing well.
-    // Fallback to text generation + custom parsing
-    const fullPrompt = `${prompt}\n\nPlease respond in valid JSON matching this schema structure. Do not include markdown code blocks, just raw JSON.`;
-    const responseText = await callLLM(fullPrompt, { ...options, systemPrompt: 'You are a helpful assistant that only outputs valid JSON.' });
-    return extractJSON(responseText) as T;
+    // Fallback to text generation + custom parsing with exact JSON schema representation
+    const schemaString = JSON.stringify(zodToJsonSchema(schema), null, 2);
+    const fullPrompt = `${prompt}\n\nPlease respond with valid JSON that strictly matches the following JSON Schema:\n\`\`\`json\n${schemaString}\n\`\`\`\nDo not include any other markdown or conversational text, just the raw JSON.`;
+    
+    const responseText = await callLLM(fullPrompt, { 
+      ...options, 
+      systemPrompt: 'You are a highly capable data extraction AI. You must ALWAYS output raw, valid JSON only. Never use markdown formatting like ```json.' 
+    });
+    
+    const parsedJson = extractJSON(responseText);
+    // Force validation against Zod schema to ensure correct structure
+    return schema.parse(parsedJson) as T;
   }
 
   const model = getLanguageModel(options);

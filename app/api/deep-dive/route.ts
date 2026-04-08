@@ -80,12 +80,13 @@ async function analyzeWithLLM(project: Project, content: string): Promise<DeepDi
 网页内容:
 ${content.slice(0, 15000)}
 
-打分标准 (1-10分):
-1. 奖金吸引力 (prize_score): 总奖池大、下限高、发放稳定币得分高。
-2. 时间性价比 (time_roi_score): MVP开发周期短、提交门槛低、投入产出比高得分高。
-3. 竞争烈度估算 (competition_score): 蓝海公链、冷门但有实力的项目得分高；卷王云集的头部赛事适度降分。
-4. 赛道风口 (trend_score): 契合当前AI+Crypto, DePIN, Bitcoin L2等热门叙事得分高。
-5. 规则清晰度 (clarity_score): 文档完备、规则清晰、利于Agent自动生成代码得分高。
+打分标准 (1-10分)，请务必将以下所有分数包裹在 "score" 对象内：
+1. 综合总分 (total_score): 基于以下各项的综合评估，1-10分。
+2. 奖金吸引力 (prize_score): 总奖池大、下限高、发放稳定币得分高。
+3. 时间性价比 (time_roi_score): MVP开发周期短、提交门槛低、投入产出比高得分高。
+4. 竞争烈度估算 (competition_score): 蓝海公链、冷门但有实力的项目得分高；卷王云集的头部赛事适度降分。
+5. 赛道风口 (trend_score): 契合当前AI+Crypto, DePIN, Bitcoin L2等热门叙事得分高。
+6. 规则清晰度 (clarity_score): 文档完备、规则清晰、利于Agent自动生成代码得分高。
 
 请额外充当资深 Web3 产品经理，结合项目要求，提供 3 个极具竞争力的具体项目创意 (projectIdeas)。每个创意必须包含名称、产品形态和获胜理由。`;
 
