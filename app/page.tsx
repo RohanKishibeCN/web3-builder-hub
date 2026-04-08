@@ -14,7 +14,8 @@ import {
   FileText,
   RefreshCw,
   Search,
-  Sparkles
+  Sparkles,
+  Lightbulb
 } from 'lucide-react';
 
 interface Project {
@@ -46,6 +47,11 @@ interface Project {
       day2: string;
       day3: string;
     };
+    projectIdeas?: {
+      name: string;
+      description: string;
+      whyItWins: string;
+    }[];
   } | null;
 }
 
@@ -97,7 +103,7 @@ export default function Dashboard() {
     return 'text-zinc-400';
   };
 
-  const handleGenerate = async (type: 'proposal' | 'code') => {
+  const handleGenerate = async (type: 'proposal' | 'code', ideaContext?: string) => {
     if (!selectedProject) return;
 
     if (isGenerating) {
@@ -109,6 +115,7 @@ export default function Dashboard() {
 项目名称: ${selectedProject.title}
 简述: ${selectedProject.summary}
 目标赛道: ${selectedProject.deep_dive_result?.suggestedTrack || '暂无'}
+${ideaContext ? `\n选择的项目创意: \n${ideaContext}\n` : ''}
 MVP 计划: 
 Day1: ${selectedProject.deep_dive_result?.mvpTimeline?.day1 || '暂无'}
 Day2: ${selectedProject.deep_dive_result?.mvpTimeline?.day2 || '暂无'}
@@ -320,6 +327,37 @@ Day3: ${selectedProject.deep_dive_result?.mvpTimeline?.day3 || '暂无'}
                           })}
                         </div>
                       </div>
+                    </div>
+                  </section>
+                )}
+
+                {/* Project Ideas (Brainstorm) */}
+                {selectedProject.deep_dive_result?.projectIdeas && selectedProject.deep_dive_result.projectIdeas.length > 0 && (
+                  <section>
+                    <h2 className="text-xs font-mono text-zinc-500 uppercase tracking-widest mb-4 flex items-center">
+                      <Lightbulb size={14} className="mr-2" /> IDEA BRAINSTORM
+                    </h2>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      {selectedProject.deep_dive_result.projectIdeas.map((idea, idx) => (
+                        <div key={idx} className="bg-[#0c0c0e] border border-zinc-800/60 p-4 rounded-md flex flex-col justify-between group hover:border-yellow-400/50 transition-colors">
+                          <div>
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="text-[10px] font-mono text-yellow-400 bg-yellow-400/10 px-1.5 py-0.5 rounded border border-yellow-400/20">IDEA {idx + 1}</span>
+                            </div>
+                            <h3 className="text-sm font-semibold text-white mb-2 leading-tight">{idea.name}</h3>
+                            <p className="text-xs text-zinc-400 mb-3 leading-relaxed">{idea.description}</p>
+                            <div className="text-[10px] text-zinc-500 font-mono border-t border-zinc-800/60 pt-2 mt-2">
+                              <span className="text-emerald-400/80 mr-1">WHY:</span> {idea.whyItWins}
+                            </div>
+                          </div>
+                          <button 
+                            onClick={() => handleGenerate('proposal', `【点子名称】${idea.name}\n【点子形态】${idea.description}\n【优势】${idea.whyItWins}`)}
+                            className="mt-4 w-full py-1.5 text-[10px] font-mono text-zinc-400 bg-zinc-900 border border-zinc-800 rounded hover:text-yellow-400 hover:border-yellow-400/50 transition-colors"
+                          >
+                            GENERATE PROPOSAL FOR THIS
+                          </button>
+                        </div>
+                      ))}
                     </div>
                   </section>
                 )}

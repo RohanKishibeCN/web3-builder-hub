@@ -55,6 +55,11 @@ const DeepDiveSchema = z.object({
     day2: z.string(),
     day3: z.string()
   }),
+  projectIdeas: z.array(z.object({
+    name: z.string().describe('项目创意名称 (如: Solana Pay 自动分账插件)'),
+    description: z.string().describe('一句话说明产品形态'),
+    whyItWins: z.string().describe('为什么这个点子容易拿奖')
+  })).optional(),
   riskFlags: z.array(z.string()).optional(),
   isSuspicious: z.boolean().optional(),
   suspicionReason: z.string().optional()
@@ -77,7 +82,9 @@ ${content.slice(0, 15000)}
 2. 时间性价比 (time_roi_score): MVP开发周期短、提交门槛低、投入产出比高得分高。
 3. 竞争烈度估算 (competition_score): 蓝海公链、冷门但有实力的项目得分高；卷王云集的头部赛事适度降分。
 4. 赛道风口 (trend_score): 契合当前AI+Crypto, DePIN, Bitcoin L2等热门叙事得分高。
-5. 规则清晰度 (clarity_score): 文档完备、规则清晰、利于Agent自动生成代码得分高。`;
+5. 规则清晰度 (clarity_score): 文档完备、规则清晰、利于Agent自动生成代码得分高。
+
+请额外充当资深 Web3 产品经理，结合项目要求，提供 3 个极具竞争力的具体项目创意 (projectIdeas)。每个创意必须包含名称、产品形态和获胜理由。`;
 
   try {
     const parsed = await callLLMObject<DeepDiveResult>(

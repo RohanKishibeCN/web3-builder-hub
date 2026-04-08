@@ -52,6 +52,13 @@ export interface DeepDiveResult {
     day3: string;
   };
   
+  // 具体的项目创意建议
+  projectIdeas?: {
+    name: string;
+    description: string;
+    whyItWins: string;
+  }[];
+  
   // 风险提示
   riskFlags?: string[];
   
