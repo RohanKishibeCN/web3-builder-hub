@@ -55,10 +55,10 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const { completion, complete, isLoading: isGenerating, stop } = useCompletion({
+  const { completion, complete, isLoading: isGenerating, stop, error } = useCompletion({
     api: '/api/generate',
-    onFinish: () => {
-      // 可在流式结束时增加动画或音效
+    onError: (err) => {
+      console.error('Generation Error:', err);
     }
   });
 
@@ -100,25 +100,33 @@ export default function Dashboard() {
   const handleGenerate = async (type: 'proposal' | 'code') => {
     if (!selectedProject) return;
 
+    if (isGenerating) {
+      stop();
+    }
+
     // 构建传递给后端的上下文
     const context = `
 项目名称: ${selectedProject.title}
 简述: ${selectedProject.summary}
-目标赛道: ${selectedProject.deep_dive_result?.suggestedTrack}
+目标赛道: ${selectedProject.deep_dive_result?.suggestedTrack || '暂无'}
 MVP 计划: 
-Day1: ${selectedProject.deep_dive_result?.mvpTimeline.day1}
-Day2: ${selectedProject.deep_dive_result?.mvpTimeline.day2}
-Day3: ${selectedProject.deep_dive_result?.mvpTimeline.day3}
-差异化优势: ${selectedProject.deep_dive_result?.differentiation}
+Day1: ${selectedProject.deep_dive_result?.mvpTimeline?.day1 || '暂无'}
+Day2: ${selectedProject.deep_dive_result?.mvpTimeline?.day2 || '暂无'}
+Day3: ${selectedProject.deep_dive_result?.mvpTimeline?.day3 || '暂无'}
+差异化优势: ${selectedProject.deep_dive_result?.differentiation || '暂无'}
 `;
 
-    // 触发流式请求
-    await complete(context, {
-      body: {
-        type,
-        projectContext: context
-      }
-    });
+    try {
+      // 触发流式请求
+      await complete(context, {
+        body: {
+          type,
+          projectContext: context
+        }
+      });
+    } catch (err) {
+      console.error('Failed to trigger generation:', err);
+    }
   };
 
   if (loading) {
@@ -350,7 +358,7 @@ Day3: ${selectedProject.deep_dive_result?.mvpTimeline.day3}
                     <div className="absolute inset-0 bg-gradient-to-r from-yellow-400/5 to-emerald-400/5 rounded-lg blur opacity-0 group-hover:opacity-100 transition-opacity" />
                     <textarea 
                       ref={textareaRef}
-                      value={completion}
+                      value={error ? `Error: ${error.message}` : completion}
                       readOnly
                       placeholder={isGenerating ? "Agent is typing..." : "// Click a button above to generate artifacts..."}
                       className="relative w-full h-64 bg-[#050505] border border-zinc-800 rounded-lg p-4 font-mono text-xs text-zinc-300 placeholder:text-zinc-700 focus:outline-none focus:border-yellow-400/50 focus:ring-1 focus:ring-yellow-400/50 resize-y custom-scrollbar"

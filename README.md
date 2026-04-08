@@ -1,227 +1,128 @@
-# Web3 Builder Hub
+# Web3 Builder Hub 🦞
 
-Web3 自动化情报系统 - 发现、分析、推送 Web3 Hackathon 和 Builder Program 机会。
+An automated intelligence hub designed specifically for Web3 Builders and Indie Hackers. It continuously monitors the internet for high-ROI Web3 Hackathons, Grants, and Builder Programs, leveraging AI Agents to deeply analyze requirements, score opportunities, and generate tailored MVP proposals.
 
-## 功能特性
+Built with **Next.js**, **Vercel AI SDK**, **PostgreSQL**, and **Apify**.
 
-- **智能发现**: 自动搜索 15+ 白名单来源，发现新项目
-- **深度分析**: 使用 LLM 分析项目潜力、胜率、技术方案
-- **每日推送**: 推送高质量项目（评分 >= 8.0）到 Telegram
-- **交互生成**: Telegram 回复指令生成申请文案和代码模板
-- **飞书集成**: 同步推送项目到 Lark（飞书）
+## 🌟 Key Features
 
-## 架构优化（最新）
+### 1. 🕵️‍♂️ Automated Intelligence Discovery (Apify)
+Replaces manual searches by utilizing the Apify Twitter Scraper (`apidojo/tweet-scraper`) to monitor high-engagement tweets containing keywords like `hackathon`, `grant`, and `bounty` within the Web3 ecosystem. It extracts real opportunities while filtering out airdrop noise.
 
-### 1. 统一 LLM 客户端
+### 2. 🧠 Agentic Deep Dive Analysis (Kimi LLM)
+Every discovered opportunity is processed by Kimi's most advanced LLMs:
+- **Jina AI Reader** extracts full official documentation (up to 15,000 characters).
+- **kimi-k2.5** performs deep reasoning, scoring the opportunity across 5 dimensions from an *Agentic Coding* perspective:
+  - **Prize ROI** (Total prize pool & stability)
+  - **Time ROI** (MVP development cycle & submission threshold)
+  - **Competition Intensity** (Blue ocean vs. crowded ecosystems)
+  - **Trend Match** (Alignment with hot narratives like AI+Crypto, DePIN)
+  - **Rule Clarity** (Documentation quality for AI code generation)
 
-通过 `lib/llm-client.ts` 实现统一的大模型调用接口：
+### 3. 💻 Industrial Dark-Mode Dashboard
+A developer-focused, utilitarian UI built with Tailwind CSS and `lucide-react`.
+- **Intelligence Feed**: A rapid-scroll left panel showing scores, deadlines, and prize pools.
+- **Deep Dive Panel**: Detailed radar metrics and a 3-Day MVP execution timeline.
+- **Agentic Workspace**: An integrated terminal interface utilizing Vercel AI SDK's streaming capabilities to generate application proposals and codebase skeletons on demand.
 
-```typescript
-// 支持的提供商
-- Kimi (默认)
-- OpenAI
-- Groq
-- Anthropic
-
-// 使用方式
-import { callLLM, callLLMJSON, extractJSON } from '@/lib/llm-client';
-
-const response = await callLLM(prompt, { temperature: 0.7 });
-const json = await callLLMJSON(prompt);
-```
-
-**环境变量配置**:
-```bash
-# 切换提供商
-LLM_PROVIDER=kimi  # 或 openai, groq, anthropic
-
-# 统一 API Key
-LLM_API_KEY=your_api_key
-```
-
-### 2. Telegram Webhook 修复
-
-**问题**: 原代码通过 HTTP 调用 `/api/generate-proposal` 导致超时
-
-**解决方案**: 直接在 Webhook 内部调用 LLM 函数
-
-```typescript
-// 修复前：HTTP 调用（可能超时）
-const response = await fetch(`${baseUrl}/api/generate-proposal?projectId=${projectId}`);
-
-// 修复后：直接函数调用
-const proposal = await generateProposal(projectId);
-```
-
-### 3. Lark (飞书) 推送模块
-
-新增 `lib/lark.ts` 支持飞书消息推送：
-
-```typescript
-import { sendLarkMessage, sendLarkCard, sendLarkDailyReport } from '@/lib/lark';
-
-// 发送文本消息
-await sendLarkMessage('Hello from Web3 Builder Hub');
-
-// 发送卡片消息
-await sendLarkCard(formatLarkProjectCard(project));
-
-// 发送每日报告
-await sendLarkDailyReport(projects);
-```
-
-**配置**:
-```bash
-LARK_WEBHOOK_URL=https://open.feishu.cn/open-apis/bot/v2/hook/xxx
-```
-
-
-## QQ Bot 配置
-
-### 1. 在 QQ 开放平台创建机器人
-
-1. 访问 [QQ 开放平台](https://q.qq.com/)
-2. 注册开发者账号
-3. 创建机器人应用，获取：
-   - **AppID**
-   - **AppSecret**
-
-### 2. 配置环境变量
-
-```bash
-QQ_APP_ID=your_qq_app_id
-QQ_APP_SECRET=your_qq_app_secret
-QQ_TARGET_TYPE=group  # channel | group | c2c
-QQ_TARGET_ID=your_target_id
-QQ_USE_SANDBOX=false  # 开发时设为 true
-```
-
-### 3. 配置回调地址
-
-在 QQ 开放平台 → 机器人 → 开发设置 → 回调地址：
-```
-https://your-domain.com/api/qq-webhook
-```
-
-### 4. 邀请机器人加入群/频道
-
-- **群聊**: 在 QQ 群设置中添加机器人
-- **频道**: 在频道设置中邀请机器人
-
-### 5. 使用指令
-
-在群/频道中发送：
-- `GO <projectId>` - 生成申请文案
-- `CODE <projectId>` - 生成代码模板
-- `CONFIRM <id>` - 确认加入白名单
-- `REJECT <id>` - 拒绝加入白名单
+### 4. 📝 GitHub Daily Markdown Reports
+High-scoring projects (Score >= 8.0) are automatically formatted into a clean Markdown report and committed to the repository (`dailyreport.md`) via the GitHub REST API. This acts as a reliable data source for external notification bots (e.g., Nanobot).
 
 ---
 
-## 快速开始
+## 🚀 Architecture & Workflow
 
-### 1. 安装依赖
+The system operates entirely on Vercel Cron Jobs:
 
-```bash
+1. **`GET /api/discover-v2`** (Cron: e.g., Every 12 Hours)
+   - Fetches tweets via Apify.
+   - Uses `kimi-k2-turbo-preview` to extract structured JSON data.
+   - Inserts pending projects into Vercel Postgres.
+
+2. **`GET /api/deep-dive`** (Cron: e.g., Every 6 Hours)
+   - Fetches official website content using Jina AI.
+   - Uses `kimi-k2.5` to score and formulate MVP plans.
+   - Updates project status in the database.
+
+3. **`GET /api/daily-report-v2`** (Cron: e.g., Every 24 Hours)
+   - Aggregates top-scoring projects.
+   - Commits the report to `dailyreport.md` via GitHub API.
+
+4. **`POST /api/generate`** (On-Demand via Dashboard)
+   - Uses `kimi-k2-0905-preview` (optimized for Agentic Coding) to stream tailored proposals and code skeletons directly to the frontend workspace.
+
+---
+
+## 🛠️ Tech Stack
+
+- **Framework**: Next.js 14 (App Router)
+- **Database**: Vercel Postgres (`@vercel/postgres`)
+- **AI Integration**: Vercel AI SDK 3.0 (`@ai-sdk/react`, `@ai-sdk/openai`)
+- **LLM Provider**: Moonshot AI (Kimi International Models)
+- **Web Scraping**: Apify Client (`apify-client`) + Jina AI Reader
+- **Styling**: Tailwind CSS
+- **Icons**: Lucide React
+- **Automation**: Vercel Cron + GitHub API (`@octokit/rest`)
+
+---
+
+## ⚙️ Local Setup & Deployment
+
+### 1. Clone the repository
+\`\`\`bash
+git clone https://github.com/RohanKishibeCN/web3-builder-hub.git
+cd web3-builder-hub
+\`\`\`
+
+### 2. Install dependencies
+\`\`\`bash
 npm install
-```
+\`\`\`
 
-### 2. 配置环境变量
+### 3. Environment Variables
+Create a \`.env.local\` file in the root directory:
 
-```bash
-cp .env.example .env.local
-# 编辑 .env.local 填入你的配置
-```
+\`\`\`env
+# Vercel Postgres (Get these from Vercel Storage Dashboard)
+POSTGRES_URL="..."
+POSTGRES_PRISMA_URL="..."
+POSTGRES_URL_NON_POOLING="..."
+POSTGRES_USER="..."
+POSTGRES_HOST="..."
+POSTGRES_PASSWORD="..."
+POSTGRES_DATABASE="..."
 
-### 3. 初始化数据库
+# Security
+CRON_SECRET="your-secure-cron-secret-string"
 
-```bash
-# 访问初始化 API
-curl http://localhost:3000/api/init
-```
+# LLM Configuration (Moonshot / Kimi)
+LLM_PROVIDER="kimi"
+LLM_API_KEY="sk-your-kimi-api-key"
 
-### 4. 本地开发
+# Data Sources
+APIFY_API_TOKEN="apify_api_your_token"
 
-```bash
+# GitHub Integration (For dailyreport.md)
+GITHUB_PAT="ghp_your_personal_access_token"
+\`\`\`
+
+### 4. Initialize Database
+Before running the app, initialize the PostgreSQL tables and indexes:
+\`\`\`bash
+curl -H "Authorization: Bearer your-secure-cron-secret-string" http://localhost:3000/api/init
+\`\`\`
+
+### 5. Run the development server
+\`\`\`bash
 npm run dev
-```
+\`\`\`
+Open [http://localhost:3000](http://localhost:3000) with your browser to see the dashboard.
 
-### 5. 部署到 Vercel
+---
 
-```bash
-vercel --prod
-```
+## 🛡️ Security Notes
+- The Cron API endpoints (`/api/discover-v2`, `/api/deep-dive`, `/api/daily-report-v2`) are protected by the `CRON_SECRET` environment variable. In a production environment (`NODE_ENV === 'production'`), requests missing the correct Bearer token will be rejected with a 401 Unauthorized error.
+- Ensure your `GITHUB_PAT` has limited scopes (only repository write access) to prevent security risks.
 
-## API 端点
-
-| 端点 | 描述 | 定时 |
-|------|------|------|
-| `/api/discover-v2` | 发现新项目 | 每天 02:00 |
-| `/api/deep-dive` | 深度分析 | 每天 23:00 |
-| `/api/daily-report-v2` | 每日推送 | 每天 08:00 |
-| `/api/generate-proposal` | 生成申请文案 | 手动 |
-| `/api/generate-template` | 生成代码模板 | 手动 |
-| `/api/telegram-webhook` | Telegram Webhook | - |
-| `/api/whitelist-confirm` | 白名单确认 | - |
-
-## Telegram 指令
-
-在 Telegram 中回复以下指令：
-
-- `GO <projectId>` - 生成申请文案
-- `CODE <projectId>` - 生成代码模板
-- `CONFIRM <id>` - 确认加入白名单
-- `REJECT <id>` - 拒绝加入白名单
-
-## 项目结构
-
-```
-web3-builder-hub/
-├── app/
-│   └── api/
-│       ├── discover-v2/        # 项目发现
-│       ├── deep-dive/          # 深度分析
-│       ├── daily-report-v2/    # 每日推送
-│       ├── generate-proposal/  # 申请文案生成
-│       ├── generate-template/  # 代码模板生成
-│       ├── telegram-webhook/   # Telegram 交互
-│       └── whitelist-confirm/  # 白名单确认
-├── lib/
-│   ├── llm-client.ts          # 统一 LLM 客户端 ⭐
-│   ├── lark.ts                # 飞书推送模块 ⭐
-│   ├── db.ts                  # 数据库操作
-│   ├── telegram.ts            # Telegram 推送
-│   ├── whitelist.ts           # 白名单管理
-│   ├── domain-evaluator.ts    # 域名评估
-│   └── content-extractor.ts   # 内容提取
-├── types/
-│   └── project.ts             # 类型定义
-└── README.md
-```
-
-## 环境变量
-
-| 变量名 | 说明 | 必需 |
-|--------|------|------|
-| `POSTGRES_URL` | PostgreSQL 连接字符串 | ✅ |
-| `BRAVE_SEARCH_API_KEY` | Brave Search API Key | ✅ |
-| `TELEGRAM_BOT_TOKEN` | Telegram Bot Token | ✅ |
-| `TELEGRAM_CHAT_ID` | Telegram Chat ID | ✅ |
-| `CRON_SECRET` | Cron 任务密钥 | ✅ |
-| `LLM_PROVIDER` | LLM 提供商 (kimi/openai/groq/anthropic) | ❌ |
-| `LLM_API_KEY` | 统一的 LLM API Key | ✅ |
-| `LARK_WEBHOOK_URL` | 飞书 Webhook URL | ❌ |
-
-## 技术栈
-
-- **框架**: Next.js 14 (App Router)
-- **数据库**: Vercel Postgres
-- **部署**: Vercel
-- **LLM**: Kimi / OpenAI / Groq / Anthropic
-- **搜索**: Brave Search API
-- **内容提取**: Jina AI Reader
-- **推送**: Telegram Bot / Lark (飞书)
-
-## License
-
-MIT
+## 📄 License
+MIT License
