@@ -11,6 +11,9 @@ import { insertProjectsBatch, logApiCall } from '@/lib/db';
 import { callLLMObject } from '@/lib/llm-client';
 import type { ExtractedProject } from '@/types/project';
 
+export const dynamic = 'force-dynamic';
+export const maxDuration = 300; // 5 minutes max for discovery
+
 function getApifyClient() {
   const token = process.env.APIFY_API_TOKEN;
   if (!token) throw new Error('APIFY_API_TOKEN is not configured');

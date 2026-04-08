@@ -14,6 +14,9 @@ import { z } from 'zod';
 import type { Project, DeepDiveResult, DeepDiveResponse } from '@/types/project';
 import { getPendingDeepDiveProjects, updateProjectStatus, logApiCall } from '@/lib/db';
 
+export const dynamic = 'force-dynamic';
+export const maxDuration = 300; // 5 minutes max for deep dives
+
 // ==================== 网页内容提取 ====================
 
 async function extractContent(url: string): Promise<string> {
@@ -142,9 +145,35 @@ async function processProject(project: Project): Promise<{
 
 // ==================== 主流程 ====================
 
-async function runDeepDive(limit: number): Promise<DeepDiveResponse> {
-  const projects = await getPendingDeepDiveProjects(limit);
-  console.log(`Found ${projects.length} pending projects`);
+async function runDeepDive(limit: number, specificId?: number): Promise<DeepDiveResponse> {
+  let projects: Project[] = [];
+  
+  if (specificId) {
+    // 获取指定项目
+    const { sql } = await import('@vercel/postgres');
+    const result = await sql`SELECT * FROM projects WHERE id = ${specificId}`;
+    if (result.rows.length > 0) {
+      const row = result.rows[0];
+      projects = [{
+        id: row.id,
+        title: row.title,
+        url: row.url,
+        summary: row.summary,
+        source: row.source,
+        discoveredAt: row.discovered_at,
+        deadline: row.deadline,
+        prizePool: row.prize_pool,
+        status: row.status as any,
+        score: row.score,
+        deepDiveResult: row.deep_dive_result,
+        createdAt: row.created_at,
+      }];
+    }
+  } else {
+    projects = await getPendingDeepDiveProjects(limit);
+  }
+
+  console.log(`Found ${projects.length} projects to process`);
 
   if (projects.length === 0) {
     return { success: true, processed: 0, successCount: 0, failed: 0, highScore: 0, errors: [] };
@@ -182,24 +211,28 @@ async function runDeepDive(limit: number): Promise<DeepDiveResponse> {
 // ==================== API 路由 ====================
 
 export async function GET(request: Request) {
-  // 验证
-  const authHeader = request.headers.get('authorization');
-  const cronSecret = process.env.CRON_SECRET;
-  
-  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
-    if (process.env.NODE_ENV === 'production') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  // 获取 limit 和 id 参数
+  const url = new URL(request.url);
+  const limit = parseInt(url.searchParams.get('limit') || '10');
+  const idStr = url.searchParams.get('id');
+  const specificId = idStr ? parseInt(idStr) : undefined;
+
+  // 验证 (如果是通过 Vercel Cron 触发的批量任务，才需要验证 CRON_SECRET)
+  if (!specificId) {
+    const authHeader = request.headers.get('authorization');
+    const cronSecret = process.env.CRON_SECRET;
+    
+    if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+      if (process.env.NODE_ENV === 'production') {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      }
     }
   }
 
-  // 获取 limit 参数
-  const url = new URL(request.url);
-  const limit = parseInt(url.searchParams.get('limit') || '10');
-
-  console.log('=== Deep Dive Started ===', new Date().toISOString());
+  console.log('=== Deep Dive Started ===', new Date().toISOString(), specificId ? `(Target ID: ${specificId})` : '');
 
   try {
-    const result = await runDeepDive(limit);
+    const result = await runDeepDive(limit, specificId);
     console.log('=== Deep Dive Completed ===', result);
 
     await logApiCall({

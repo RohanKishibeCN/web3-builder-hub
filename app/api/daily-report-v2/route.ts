@@ -13,6 +13,9 @@ import { getScoredProjects, getProjectStats } from '@/lib/db';
 import type { DailyReportResponse } from '@/types/project';
 import { writeDailyReportToGithub } from '@/lib/github';
 
+export const dynamic = 'force-dynamic';
+export const maxDuration = 60;
+
 const MIN_SCORE = 8.0;
 const MAX_PROJECTS = 5;
 

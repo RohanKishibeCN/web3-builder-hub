@@ -1,8 +1,10 @@
 'use server';
 
 import { sql } from '@vercel/postgres';
+import { unstable_noStore as noStore } from 'next/cache';
 
 export async function fetchProjects() {
+  noStore();
   try {
     const { rows } = await sql`
       SELECT 

@@ -59,6 +59,7 @@ export default function Dashboard() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isReEvaluating, setIsReEvaluating] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const { completion, complete, isLoading: isGenerating, stop, error } = useCompletion({
@@ -133,6 +134,36 @@ Day3: ${selectedProject.deep_dive_result?.mvpTimeline?.day3 || '暂无'}
       });
     } catch (err) {
       console.error('Failed to trigger generation:', err);
+    }
+  };
+
+  const handleReEvaluate = async () => {
+    if (!selectedProject || isReEvaluating) return;
+    
+    setIsReEvaluating(true);
+    try {
+      // Call the API endpoint
+      const res = await fetch(`/api/deep-dive?id=${selectedProject.id}`);
+      if (!res.ok) throw new Error('API failed');
+      
+      const data = await res.json();
+      if (data.success && data.processed > 0) {
+        // Re-fetch all projects to update the UI
+        const updatedProjects = await fetchProjects();
+        setProjects(updatedProjects);
+        // Update selected project to the new version
+        const updatedSelected = updatedProjects.find((p: Project) => p.id === selectedProject.id);
+        if (updatedSelected) {
+          setSelectedProject(updatedSelected);
+        }
+      } else {
+        alert('Re-evaluation failed or no changes made.');
+      }
+    } catch (error) {
+      console.error('Failed to re-evaluate:', error);
+      alert('Failed to re-evaluate project.');
+    } finally {
+      setIsReEvaluating(false);
     }
   };
 
@@ -332,7 +363,7 @@ Day3: ${selectedProject.deep_dive_result?.mvpTimeline?.day3 || '暂无'}
                 )}
 
                 {/* Project Ideas (Brainstorm) */}
-                {selectedProject.deep_dive_result?.projectIdeas && selectedProject.deep_dive_result.projectIdeas.length > 0 && (
+                {selectedProject.deep_dive_result?.projectIdeas && selectedProject.deep_dive_result.projectIdeas.length > 0 ? (
                   <section>
                     <h2 className="text-xs font-mono text-zinc-500 uppercase tracking-widest mb-4 flex items-center">
                       <Lightbulb size={14} className="mr-2" /> IDEA BRAINSTORM
@@ -360,6 +391,25 @@ Day3: ${selectedProject.deep_dive_result?.mvpTimeline?.day3 || '暂无'}
                       ))}
                     </div>
                   </section>
+                ) : (
+                  <section>
+                    <h2 className="text-xs font-mono text-zinc-500 uppercase tracking-widest mb-4 flex items-center">
+                      <Lightbulb size={14} className="mr-2" /> IDEA BRAINSTORM
+                    </h2>
+                    <div className="bg-[#0c0c0e] border border-zinc-800/60 p-4 rounded-md flex flex-col items-center justify-center py-8 text-center">
+                      <Lightbulb size={24} className="text-zinc-600 mb-3" />
+                      <p className="text-sm text-zinc-400 mb-1">No Ideas Found</p>
+                      <p className="text-xs text-zinc-500 max-w-sm mb-4">This record was evaluated before the IDEA BRAINSTORM module was added. Click the button below to re-evaluate it and generate ideas.</p>
+                      <button 
+                        onClick={handleReEvaluate}
+                        disabled={isReEvaluating}
+                        className="flex items-center text-xs font-mono px-4 py-2 bg-zinc-900 hover:bg-zinc-800 text-yellow-400 rounded border border-zinc-800 transition-colors disabled:opacity-50"
+                      >
+                        <RefreshCw size={12} className={`mr-2 ${isReEvaluating ? 'animate-spin' : ''}`} />
+                        {isReEvaluating ? 'GENERATING IDEAS...' : 'RE-RUN DEEP DIVE'}
+                      </button>
+                    </div>
+                  </section>
                 )}
 
                 {/* Workspace / Terminal */}
@@ -384,10 +434,12 @@ Day3: ${selectedProject.deep_dive_result?.mvpTimeline?.day3 || '暂无'}
                         <Code size={12} className="mr-1.5" /> CODE SKELETON
                       </button>
                       <button 
-                        className="flex items-center text-[10px] font-mono px-2 py-1.5 bg-zinc-900 hover:bg-zinc-800 text-zinc-500 rounded border border-zinc-800 transition-colors"
-                        title="Re-run Deep Dive"
+                        onClick={handleReEvaluate}
+                        disabled={isReEvaluating}
+                        className="flex items-center text-[10px] font-mono px-2 py-1.5 bg-zinc-900 hover:bg-zinc-800 text-zinc-500 rounded border border-zinc-800 transition-colors disabled:opacity-50"
+                        title="Re-run Deep Dive (Update schema)"
                       >
-                        <RefreshCw size={12} />
+                        <RefreshCw size={12} className={isReEvaluating ? 'animate-spin text-yellow-400' : ''} />
                       </button>
                     </div>
                   </div>
