@@ -36,10 +36,28 @@ function getLanguageModel(options: CallLLMOptions = {}) {
     const apiKey = process.env.LLM_API_KEY || process.env.KIMI_API_KEY;
     if (!apiKey) throw new Error('KIMI_API_KEY or LLM_API_KEY is not set');
     
+    // Define a custom fetch function that removes 'stream_options' from the request body
+    // to avoid Kimi API's "Unrecognized stream_options" 400 error.
+    const customFetch = async (url: URL | RequestInfo, init?: RequestInit): Promise<Response> => {
+      if (init && init.body && typeof init.body === 'string') {
+        try {
+          const bodyObj = JSON.parse(init.body);
+          if (bodyObj.stream_options) {
+            delete bodyObj.stream_options;
+          }
+          init.body = JSON.stringify(bodyObj);
+        } catch (e) {
+          // Ignore JSON parse errors
+        }
+      }
+      return fetch(url, init);
+    };
+
     // 使用 Kimi 国际版 API 端点
     const kimi = createOpenAI({
       baseURL: 'https://api.moonshot.ai/v1',
       apiKey,
+      fetch: customFetch,
     });
     
     // Kimi does not support modern strict OpenAI modes fully (e.g. structured outputs)
