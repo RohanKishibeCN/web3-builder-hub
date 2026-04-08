@@ -163,9 +163,22 @@ export async function callLLMObject<T>(
       systemPrompt: 'You are a highly capable data extraction AI. You must ALWAYS output raw, valid JSON only. Never use markdown formatting like ```json.' 
     });
     
-    const parsedJson = extractJSON(responseText);
-    // Force validation against Zod schema to ensure correct structure
-    return schema.parse(parsedJson) as T;
+    let parsedJson;
+    try {
+      parsedJson = extractJSON(responseText);
+    } catch (err) {
+      console.error('Kimi extractJSON failed. Raw output:', responseText);
+      throw new Error(`Failed to parse JSON from Kimi: ${responseText.slice(0, 100)}...`);
+    }
+
+    try {
+      // Force validation against Zod schema to ensure correct structure
+      return schema.parse(parsedJson) as T;
+    } catch (zodError) {
+      console.error('Zod validation failed for Kimi output:', JSON.stringify(zodError, null, 2));
+      console.error('Raw parsed JSON was:', JSON.stringify(parsedJson, null, 2));
+      throw new Error(`Zod validation failed: ${zodError}`);
+    }
   }
 
   const model = getLanguageModel(options);

@@ -39,30 +39,30 @@ async function extractContent(url: string): Promise<string> {
 
 const DeepDiveSchema = z.object({
   score: z.object({
-    total_score: z.number().min(1).max(10).describe('综合总分(1-10)'),
-    prize_score: z.number().min(1).max(10).describe('奖金吸引力(1-10)'),
-    time_roi_score: z.number().min(1).max(10).describe('时间性价比(1-10)'),
-    competition_score: z.number().min(1).max(10).describe('竞争烈度估算(1-10)'),
-    trend_score: z.number().min(1).max(10).describe('赛道风口(1-10)'),
-    clarity_score: z.number().min(1).max(10).describe('规则清晰度(1-10)'),
+    total_score: z.coerce.number().min(1).max(10).describe('综合总分(1-10)'),
+    prize_score: z.coerce.number().min(1).max(10).describe('奖金吸引力(1-10)'),
+    time_roi_score: z.coerce.number().min(1).max(10).describe('时间性价比(1-10)'),
+    competition_score: z.coerce.number().min(1).max(10).describe('竞争烈度估算(1-10)'),
+    trend_score: z.coerce.number().min(1).max(10).describe('赛道风口(1-10)'),
+    clarity_score: z.coerce.number().min(1).max(10).describe('规则清晰度(1-10)'),
     reason: z.string().describe('简短中文评价(50字内)')
-  }),
+  }).describe('评分结果对象'),
   trackPotential: z.string().describe('赛道潜力分析(50字内)'),
   suggestedTrack: z.string().describe('建议参与的具体赛道'),
-  winProbability: z.number().min(0).max(100).describe('预计获奖率(0-100)'),
+  winProbability: z.coerce.number().min(0).max(100).describe('预计获奖率(0-100)'),
   participationPlan: z.string().describe('500字参与计划'),
   suggestedTechStack: z.array(z.string()).describe('推荐技术栈'),
   differentiation: z.string().describe('差异化点(100字内)'),
   mvpTimeline: z.object({
-    day1: z.string(),
-    day2: z.string(),
-    day3: z.string()
-  }),
+    day1: z.string().describe('第一天的计划'),
+    day2: z.string().describe('第二天的计划'),
+    day3: z.string().describe('第三天的计划')
+  }).describe('3天MVP开发时间线，字段名必须严格为 day1, day2, day3'),
   projectIdeas: z.array(z.object({
     name: z.string().describe('项目创意名称 (如: Solana Pay 自动分账插件)'),
     description: z.string().describe('一句话说明产品形态'),
     whyItWins: z.string().describe('为什么这个点子容易拿奖')
-  })).optional(),
+  })).optional().describe('3个极具竞争力的具体项目创意'),
   riskFlags: z.array(z.string()).optional(),
   isSuspicious: z.boolean().optional(),
   suspicionReason: z.string().optional()
@@ -100,9 +100,9 @@ ${content.slice(0, 15000)}
       }
     );
     return parsed;
-  } catch (error) {
+  } catch (error: any) {
     console.error('LLM Analysis Error:', error);
-    return null;
+    throw new Error(error.message || String(error));
   }
 }
 
@@ -120,14 +120,18 @@ async function processProject(project: Project): Promise<{
     const content = await extractContent(project.url);
     
     // LLM 分析
-    const analysis = await analyzeWithLLM(
-      project, 
-      content || `项目名称: ${project.title}\n简介: ${project.summary}`
-    );
+    let analysis;
+    try {
+      analysis = await analyzeWithLLM(
+        project, 
+        content || `项目名称: ${project.title}\n简介: ${project.summary}`
+      );
+    } catch (e: any) {
+      return { success: false, error: `LLM Error: ${e.message}` };
+    }
 
     if (!analysis) {
-      // 记录错误但继续，可能要增加一个 failed 状态或 retry 计数器
-      return { success: false, error: 'LLM analysis failed' };
+      return { success: false, error: 'LLM analysis returned null' };
     }
 
     // 更新数据库
