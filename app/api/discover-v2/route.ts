@@ -1,274 +1,143 @@
+/**
+ * Web3 Builder Hub - Discover API (Phase 2)
+ * 采用 Apify (apidojo/tweet-scraper) 作为情报源
+ * 获取最新的 Web3 黑客松/开发者活动推文，并交由 LLM 提取。
+ */
+
 import { NextResponse } from 'next/server';
-import { 
-  insertProjectsBatch, 
-  logApiCall, 
-  addCandidateDomain,
-  getDynamicWhitelist 
-} from '@/lib/db';
-import { evaluateDomain, quickEvaluate } from '@/lib/domain-evaluator';
-import { callLLM, extractJSON } from '@/lib/llm-client';
-import { 
-  CHAIN_WHITELIST, 
-  INSTITUTION_WHITELIST,
-  STATIC_WHITELIST,
-  validateProjectBasic,
-  getSearchQueries,
-  detectTrack,
-} from '@/lib/whitelist';
-import type { ExtractedProject, BraveSearchResult } from '@/types/project';
+import { ApifyClient } from 'apify-client';
+import { insertProjectsBatch, logApiCall } from '@/lib/db';
+import { callLLMObject } from '@/lib/llm-client';
+import { z } from 'zod';
+import type { ExtractedProject } from '@/types/project';
 
-function getBraveKey(): string {
-  const key = process.env.BRAVE_SEARCH_API_KEY;
-  if (!key) throw new Error('BRAVE_SEARCH_API_KEY not configured');
-  return key;
+function getApifyClient() {
+  const token = process.env.APIFY_API_TOKEN;
+  if (!token) throw new Error('APIFY_API_TOKEN is not configured');
+  return new ApifyClient({ token });
 }
 
-// QQ Bot 配置
-const QQ_TARGET_ID = process.env.QQ_TARGET_ID;
-const QQ_TARGET_TYPE = (process.env.QQ_TARGET_TYPE || 'group') as 'channel' | 'group' | 'c2c';
+// 提取推文为结构化项目的 Schema
+const ExtractedProjectsSchema = z.object({
+  projects: z.array(
+    z.object({
+      title: z.string().describe('项目/活动名称'),
+      url: z.string().describe('活动链接 (推文里的外链)'),
+      deadline: z.string().nullable().describe('截止日期 YYYY-MM-DD，如果没有则为 null'),
+      prize_pool: z.string().nullable().describe('奖金描述，如果没有则为 null'),
+      summary: z.string().describe('一句话简短描述'),
+      source: z.string().describe('来源推特账号')
+    })
+  )
+});
 
-async function braveSearch(query: string, count: number = 10): Promise<BraveSearchResult[]> {
-  const BRAVE_API_KEY = getBraveKey();
+/**
+ * 步骤 1: 调用 Apify 获取热门推文
+ */
+async function fetchTweetsFromApify(maxItems = 30) {
+  console.log('Fetching tweets from Apify...');
+  const client = getApifyClient();
 
-  const response = await fetch(
-    `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(query)}&count=${count}`,
-    {
-      headers: {
-        'X-Subscription-Token': BRAVE_API_KEY,
-        'Accept': 'application/json',
-      },
-    }
-  );
+  // 构建高级搜索词：寻找近期热度较高的 Web3 活动
+  const searchTerms = [
+    '("hackathon" OR "grant" OR "bounty" OR "builder program") AND ("web3" OR "crypto" OR "blockchain" OR "solana" OR "ethereum") min_faves:10 -filter:replies'
+  ];
 
-  if (!response.ok) throw new Error(`Brave API: ${response.status}`);
+  const input = {
+    searchTerms,
+    maxItems,
+    sort: "Latest", // 按最新排序
+    tweetLanguage: "en"
+  };
 
-  const data = await response.json();
-  return (data.web?.results || []).map((r: any) => ({
-    title: r.title,
-    url: r.url,
-    description: r.description,
-  }));
+  // 调用 apidojo/tweet-scraper
+  const run = await client.actor("apidojo/tweet-scraper").call(input);
+  console.log(`Apify run finished with ID: ${run.id}`);
+
+  // 获取结果数据集
+  const { items } = await client.dataset(run.defaultDatasetId).listItems();
+  return items;
 }
 
-async function extractWithLLM(results: BraveSearchResult[]): Promise<ExtractedProject[]> {
-  const prompt = `从以下搜索结果中提取 Web3 Hackathon / Builder Program / Grant 项目。
+/**
+ * 步骤 2: 将推文列表合并，交给 Kimi 提取出具体项目
+ */
+async function extractProjectsFromTweets(tweets: any[]): Promise<ExtractedProject[]> {
+  console.log(`Extracting projects from ${tweets.length} tweets using LLM...`);
+  
+  if (tweets.length === 0) return [];
 
-要求:
-- 奖金 >= $5000
-- 截止日期 >= 7 天后（或滚动申请）
-- 排除包含诈骗关键词的项目
+  // 将推文浓缩为文本，减少 Token 消耗
+  const tweetsContext = tweets.map((t, i) => {
+    const author = t.twitterHandle || (t.author && t.author.userName) || 'unknown';
+    const text = t.text || t.full_text || '';
+    // 提取推文中的所有外链
+    const urls = (t.entities?.urls || []).map((u: any) => u.expanded_url).join(', ');
+    
+    return `[${i+1}] @${author}: ${text}\nLinks: ${urls}\nTweet URL: ${t.url || t.twitterUrl}`;
+  }).join('\n\n');
 
-搜索结果:
-${JSON.stringify(results, null, 2)}
+  const prompt = `你是一个专业的 Web3 开发者情报分析师。我提供了一批近期关于 Web3 Hackathon / Grant / Bounty 的推文。
+请从这些推文中提取出**真实有效**的开发者活动项目。
 
-输出 JSON 数组格式:
-[{
-  "title": "项目名称",
-  "url": "项目链接",
-  "deadline": "YYYY-MM-DD 或 null",
-  "prize_pool": "奖金描述 或 null",
-  "summary": "一句话描述",
-  "source": "来源域名"
-}]
+要求：
+1. 必须是给开发者参与的活动（黑客松、资助、赏金）。排除纯粹的空投炒作或毫无意义的闲聊。
+2. 提取活动的名称、简介、截止日期和奖金。
+3. "url" 字段必须优先使用推文里包含的**活动官网/报名外链**。如果没有外链，才使用推文本身的 URL。
+4. "source" 字段填推文的作者账号（如 @ETHGlobal）。
 
-只输出 JSON 数组，不要其他文字。`;
+推文内容如下：
+${tweetsContext.slice(0, 30000)}
 
-  const response = await callLLM(prompt, { temperature: 0.3 });
+请严格返回符合 Schema 的 JSON 数据。`;
 
   try {
-    return extractJSON(response);
-  } catch {
+    const result = await callLLMObject<{ projects: ExtractedProject[] }>(
+      prompt, 
+      ExtractedProjectsSchema, 
+      { temperature: 0.2 }
+    );
+    return result.projects;
+  } catch (error) {
+    console.error('LLM Extraction Error:', error);
     return [];
   }
 }
 
-async function searchFixedWhitelist(): Promise<BraveSearchResult[]> {
-  console.log('Searching fixed whitelist...');
-  const results: BraveSearchResult[] = [];
-  const queries = getSearchQueries();
-
-  for (const query of queries) {
-    try {
-      const batch = await braveSearch(query, 5);
-      results.push(...batch);
-      await new Promise(r => setTimeout(r, 300));
-    } catch (e) {
-      console.error(`Search error for "${query}":`, e);
-    }
-  }
-
-  return results;
-}
-
-async function searchDynamicWhitelist(): Promise<BraveSearchResult[]> {
-  console.log('Searching dynamic whitelist...');
-  const dynamicDomains = await getDynamicWhitelist();
-  const results: BraveSearchResult[] = [];
-
-  for (const domain of dynamicDomains.slice(0, 10)) {
-    try {
-      const queries = [
-        `site:${domain} hackathon`,
-        `site:${domain} builder program`,
-        `site:${domain} grant`,
-      ];
-
-      for (const query of queries) {
-        const batch = await braveSearch(query, 3);
-        results.push(...batch);
-        await new Promise(r => setTimeout(r, 200));
-      }
-    } catch (e) {
-      console.error(`Dynamic search error for ${domain}:`, e);
-    }
-  }
-
-  return results;
-}
-
-async function discoverNewDomains(allResults: BraveSearchResult[]): Promise<{
-  newDomains: Array<{
-    domain: string;
-    title: string;
-    description: string;
-    sampleUrl: string;
-  }>;
-  evaluated: number;
-}> {
-  console.log('Discovering new domains...');
-
-  const domainMap = new Map<string, { title: string; description: string; url: string }>();
-
-  for (const result of allResults) {
-    try {
-      const hostname = new URL(result.url).hostname.toLowerCase();
-
-      if (STATIC_WHITELIST.some(d => hostname === d || hostname.endsWith(`.${d}`))) {
-        continue;
-      }
-
-      const dynamicWhitelist = await getDynamicWhitelist();
-      if (dynamicWhitelist.some(d => hostname === d || hostname.endsWith(`.${d}`))) {
-        continue;
-      }
-
-      if (!domainMap.has(hostname)) {
-        domainMap.set(hostname, {
-          title: result.title,
-          description: result.description,
-          url: result.url,
-        });
-      }
-    } catch {
-      // 无效 URL，跳过
-    }
-  }
-
-  const newDomains = Array.from(domainMap.entries()).map(([domain, info]) => ({
-    domain,
-    title: info.title,
-    description: info.description,
-    sampleUrl: info.url,
-  }));
-
-  console.log(`Found ${newDomains.length} potential new domains`);
-
-  const promisingDomains = newDomains.filter(d => {
-    const eval_result = quickEvaluate(d.domain, `${d.title} ${d.description}`);
-    return eval_result.shouldConsider || eval_result.track === 'AI' || eval_result.track === 'Infra';
-  });
-
-  console.log(`Promising domains after quick filter: ${promisingDomains.length}`);
-
-  const toEvaluate = promisingDomains.slice(0, 5);
-  let evaluated = 0;
-
-  for (const item of toEvaluate) {
-    try {
-      const evaluation = await evaluateDomain(item.domain, {
-        title: item.title,
-        description: item.description,
-        foundOn: item.sampleUrl,
-      });
-
-      if (evaluation && evaluation.shouldAdd && evaluation.score >= 60) {
-        const result = await addCandidateDomain({
-          domain: evaluation.domain,
-          name: evaluation.name,
-          track: evaluation.track,
-          priority: evaluation.priority,
-          sourceUrl: item.sampleUrl,
-        });
-
-        if (result.success) {
-          evaluated++;
-        }
-      }
-
-      await new Promise(r => setTimeout(r, 500));
-    } catch (e) {
-      console.error(`Evaluate domain error for ${item.domain}:`, e);
-    }
-  }
-
-  return { newDomains, evaluated };
-}
-
-async function runDiscovery(): Promise<{
-  success: boolean;
-  found: number;
-  inserted: number;
-  skipped: number;
-  newDomains: number;
-  evaluated: number;
-  errors: string[];
-}> {
+/**
+ * 主执行流程
+ */
+async function runDiscovery() {
   const errors: string[] = [];
-
-  const fixedResults = await searchFixedWhitelist();
-  console.log(`Fixed whitelist results: ${fixedResults.length}`);
-
-  const dynamicResults = await searchDynamicWhitelist();
-  console.log(`Dynamic whitelist results: ${dynamicResults.length}`);
-
-  const allResults = [...fixedResults, ...dynamicResults];
-  const unique = Array.from(new Map(allResults.map(r => [r.url, r])).values());
-  console.log(`Unique results: ${unique.length}`);
-
-  const { newDomains, evaluated } = await discoverNewDomains(unique);
-
-  console.log('Extracting projects with LLM...');
-  let extracted: ExtractedProject[] = [];
-  const maxToExtract = Math.min(unique.length, 30);
-
-  for (let i = 0; i < maxToExtract; i += 10) {
-    try {
-      const batch = unique.slice(i, i + 10);
-      const projects = await extractWithLLM(batch);
-      extracted.push(...projects);
-      await new Promise(r => setTimeout(r, 500));
-    } catch (e) {
-      errors.push(`LLM batch ${i}: ${e}`);
-    }
+  
+  // 1. 获取推文
+  let tweets: any[] = [];
+  try {
+    tweets = await fetchTweetsFromApify(50);
+    console.log(`Successfully fetched ${tweets.length} tweets.`);
+  } catch (error) {
+    console.error('Apify fetch error:', error);
+    errors.push(`Apify Error: ${error}`);
+    return { success: false, found: 0, inserted: 0, skipped: 0, errors };
   }
 
-  console.log(`Extracted: ${extracted.length}`);
+  // 2. LLM 提取项目
+  // 为了防止 Token 超限，分批提取（每 25 条推文一批）
+  const extracted: ExtractedProject[] = [];
+  for (let i = 0; i < tweets.length; i += 25) {
+    const batch = tweets.slice(i, i + 25);
+    const batchExtracted = await extractProjectsFromTweets(batch);
+    extracted.push(...batchExtracted);
+  }
 
-  const valid = extracted.filter(p => {
-    const result = validateProjectBasic(p);
-    if (!result.valid) {
-      console.log(`  Filtered: ${p.title} - ${result.reason}`);
-    }
-    return result.valid;
-  });
+  console.log(`LLM extracted ${extracted.length} potential projects.`);
 
-  console.log(`Valid: ${valid.length}`);
-
-  const toInsert = valid.map(p => ({
+  // 3. 入库
+  const toInsert = extracted.map(p => ({
     title: p.title,
     url: p.url,
     summary: p.summary,
-    source: p.source || new URL(p.url).hostname,
+    source: p.source,
     discoveredAt: new Date().toISOString(),
     deadline: p.deadline,
     prizePool: p.prize_pool,
@@ -284,15 +153,12 @@ async function runDiscovery(): Promise<{
     found: extracted.length,
     inserted: result.inserted,
     skipped: result.skipped,
-    newDomains: newDomains.length,
-    evaluated,
     errors: [...errors, ...result.errors],
   };
 }
 
 export async function GET(request: Request) {
   const startTime = Date.now();
-
   const authHeader = request.headers.get('authorization');
   const cronSecret = process.env.CRON_SECRET;
 
@@ -303,7 +169,7 @@ export async function GET(request: Request) {
     }
   }
 
-  console.log('=== Discover V2 Started ===', new Date().toISOString());
+  console.log('=== Discover V2 (Apify) Started ===', new Date().toISOString());
 
   try {
     const result = await runDiscovery();
@@ -319,9 +185,8 @@ export async function GET(request: Request) {
       inserted: result.inserted,
     });
 
-    if (result.inserted > 0 || result.evaluated > 0) {
-      const msg = `发现完成\n新项目: ${result.inserted} 个\n新域名: ${result.newDomains} 个\n待确认: ${result.evaluated} 个`;
-      console.log(msg);
+    if (result.inserted > 0) {
+      console.log(`发现完成\n新项目: ${result.inserted} 个`);
     }
 
     return NextResponse.json({
@@ -339,9 +204,6 @@ export async function GET(request: Request) {
       durationMs: duration,
       errorMessage: String(error),
     });
-
-    const msg = `发现任务失败: ${error}`;
-    console.error(msg);
 
     return NextResponse.json(
       { success: false, error: String(error), duration, timestamp: new Date().toISOString() },

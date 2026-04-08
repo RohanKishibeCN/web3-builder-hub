@@ -11,6 +11,7 @@
 import { NextResponse } from 'next/server';
 import { getScoredProjects, getProjectStats } from '@/lib/db';
 import type { DailyReportResponse } from '@/types/project';
+import { writeDailyReportToGithub } from '@/lib/github';
 
 const MIN_SCORE = 8.0;
 const MAX_PROJECTS = 5;
@@ -49,7 +50,33 @@ export async function GET(request: Request) {
       prizePool: p.prizePool || undefined,
     }));
 
-    // TODO: Phase 2 - 将高分项目写入 Git Markdown
+    // 将高分项目写入 Git Markdown
+    let markdownContent = `## 🌟 精选高分项目 (Score >= 8.0)\n\n`;
+    
+    if (formattedProjects.length === 0) {
+      markdownContent += `_今日暂无符合条件的高分项目。_\n`;
+    } else {
+      formattedProjects.forEach((p, idx) => {
+        markdownContent += `### ${idx + 1}. [${p.title}](${p.url})\n`;
+        markdownContent += `- **综合评分**: ${p.score.total_score} / 10\n`;
+        markdownContent += `- **奖金 / 截止**: ${p.prizePool || '未明确'} / ${p.deadline || '滚动申请'}\n`;
+        markdownContent += `- **赛道建议**: ${p.deepDiveResult?.suggestedTrack || '暂无'}\n`;
+        markdownContent += `- **研判简评**: ${p.score.reason}\n\n`;
+        
+        if (p.deepDiveResult?.participationPlan) {
+          markdownContent += `**🏆 参与计划与 MVP 建议**:\n`;
+          markdownContent += `> ${p.deepDiveResult.participationPlan.replace(/\n/g, '\n> ')}\n\n`;
+        }
+        markdownContent += `---\n`;
+      });
+    }
+
+    markdownContent += `\n\n## 📊 数据统计\n`;
+    markdownContent += `- 追踪项目总数: ${stats.total}\n`;
+    markdownContent += `- 待深度研判: ${stats.pendingDeepDive}\n`;
+    markdownContent += `- 已评分项目: ${stats.scored}\n`;
+
+    const githubSuccess = await writeDailyReportToGithub(markdownContent);
 
     console.log('=== Daily Report V2 Completed ===', { 
       count: projects.length 
@@ -57,7 +84,7 @@ export async function GET(request: Request) {
 
     const response: DailyReportResponse = {
       success: true,
-      sent: true,
+      sent: githubSuccess,
       count: projects.length,
       stats,
     };
