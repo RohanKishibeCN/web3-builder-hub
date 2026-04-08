@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { fetchProjects } from './actions';
+import { useCompletion } from 'ai/react';
 import { 
   Terminal, 
   ExternalLink, 
@@ -52,8 +53,26 @@ export default function Dashboard() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
-  const [workspaceText, setWorkspaceText] = useState('');
-  const [isGenerating, setIsGenerating] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const { completion, complete, isLoading: isGenerating, stop } = useCompletion({
+    api: '/api/generate',
+    onFinish: () => {
+      // 可在流式结束时增加动画或音效
+    }
+  });
+
+  // 当选中不同的项目时，清空之前生成的文案
+  useEffect(() => {
+    if (completion) stop();
+  }, [selectedProject, stop]);
+
+  // 自动滚动到文本框底部
+  useEffect(() => {
+    if (textareaRef.current && isGenerating) {
+      textareaRef.current.scrollTop = textareaRef.current.scrollHeight;
+    }
+  }, [completion, isGenerating]);
 
   useEffect(() => {
     fetchProjects().then(data => {
@@ -78,24 +97,28 @@ export default function Dashboard() {
     return 'text-zinc-400';
   };
 
-  const handleGenerate = (type: 'proposal' | 'code') => {
-    setIsGenerating(true);
-    setWorkspaceText('');
-    
-    // Simulate streaming response
-    const mockResponse = type === 'proposal' 
-      ? `## Application Proposal for ${selectedProject?.title}\n\n**Team Profile**: Full-stack Web3 Builders (Next.js + Solidity)\n\n**Project Pitch**: We are building a high-efficiency protocol leveraging ${selectedProject?.deep_dive_result?.suggestedTechStack?.join(', ') || 'modern tech'}.\n\n**Why we fit the ${selectedProject?.deep_dive_result?.suggestedTrack || 'track'}**:\n${selectedProject?.deep_dive_result?.differentiation || 'We offer a unique approach.'}`
-      : `// MVP Code Skeleton for ${selectedProject?.title}\n\n// 1. Setup Next.js App Router\nnpx create-next-app@latest .\n\n// 2. Install Web3 dependencies\nnpm install viem wagmi @tanstack/react-query\n\n// 3. Smart Contract Scaffold\n// TODO: Implement core logic based on:\n// ${selectedProject?.deep_dive_result?.participationPlan || 'Hackathon requirements'}`;
+  const handleGenerate = async (type: 'proposal' | 'code') => {
+    if (!selectedProject) return;
 
-    let i = 0;
-    const interval = setInterval(() => {
-      setWorkspaceText(prev => prev + mockResponse.charAt(i));
-      i++;
-      if (i >= mockResponse.length) {
-        clearInterval(interval);
-        setIsGenerating(false);
+    // 构建传递给后端的上下文
+    const context = `
+项目名称: ${selectedProject.title}
+简述: ${selectedProject.summary}
+目标赛道: ${selectedProject.deep_dive_result?.suggestedTrack}
+MVP 计划: 
+Day1: ${selectedProject.deep_dive_result?.mvpTimeline.day1}
+Day2: ${selectedProject.deep_dive_result?.mvpTimeline.day2}
+Day3: ${selectedProject.deep_dive_result?.mvpTimeline.day3}
+差异化优势: ${selectedProject.deep_dive_result?.differentiation}
+`;
+
+    // 触发流式请求
+    await complete(context, {
+      body: {
+        type,
+        projectContext: context
       }
-    }, 10); // Fast typing effect
+    });
   };
 
   if (loading) {
@@ -326,8 +349,9 @@ export default function Dashboard() {
                   <div className="relative group">
                     <div className="absolute inset-0 bg-gradient-to-r from-yellow-400/5 to-emerald-400/5 rounded-lg blur opacity-0 group-hover:opacity-100 transition-opacity" />
                     <textarea 
-                      value={workspaceText}
-                      onChange={(e) => setWorkspaceText(e.target.value)}
+                      ref={textareaRef}
+                      value={completion}
+                      readOnly
                       placeholder={isGenerating ? "Agent is typing..." : "// Click a button above to generate artifacts..."}
                       className="relative w-full h-64 bg-[#050505] border border-zinc-800 rounded-lg p-4 font-mono text-xs text-zinc-300 placeholder:text-zinc-700 focus:outline-none focus:border-yellow-400/50 focus:ring-1 focus:ring-yellow-400/50 resize-y custom-scrollbar"
                       spellCheck="false"
