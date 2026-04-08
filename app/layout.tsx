@@ -1,3 +1,5 @@
+import './globals.css';
+
 export const metadata = {
   title: 'Web3 Builder Hub',
   description: '自动发现 Web3 Hackathon 和 Builder Program',
