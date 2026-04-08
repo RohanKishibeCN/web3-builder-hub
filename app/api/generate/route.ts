@@ -1,8 +1,8 @@
 import { streamText } from 'ai';
 import { createOpenAI } from '@ai-sdk/openai';
 
-// Allow streaming responses up to 30 seconds
-export const maxDuration = 30;
+// Allow streaming responses up to 60 seconds
+export const maxDuration = 60;
 
 export async function POST(req: Request) {
   const { prompt, type, projectContext } = await req.json();
@@ -12,10 +12,27 @@ export async function POST(req: Request) {
     return new Response('API Key not configured', { status: 500 });
   }
 
+  // Define a custom fetch function that removes 'stream_options' from the request body
+  // to avoid Kimi API's "Unrecognized stream_options" 400 error.
+  const customFetch = async (url: URL | RequestInfo, init?: RequestInit): Promise<Response> => {
+    if (init && init.body && typeof init.body === 'string') {
+      try {
+        const bodyObj = JSON.parse(init.body);
+        if (bodyObj.stream_options) {
+          delete bodyObj.stream_options;
+        }
+        init.body = JSON.stringify(bodyObj);
+      } catch (e) {
+        // Ignore JSON parse errors
+      }
+    }
+    return fetch(url, init);
+  };
+
   const kimi = createOpenAI({
     baseURL: 'https://api.moonshot.ai/v1',
     apiKey,
-    compatibility: 'compatible', // 开启兼容模式，防止 Kimi 报错 Unrecognized stream_options
+    fetch: customFetch,
   });
 
   // 使用专门针对代码和前端优化的 kimi-k2-0905-preview 模型
@@ -36,12 +53,17 @@ export async function POST(req: Request) {
 
   const fullPrompt = `项目背景信息：\n${projectContext}\n\n请开始生成：`;
 
-  const result = await streamText({
-    model,
-    system: systemMessage,
-    prompt: fullPrompt,
-    temperature: 0.7,
-  });
+  try {
+    const result = await streamText({
+      model,
+      system: systemMessage,
+      prompt: fullPrompt,
+      temperature: 0.7,
+    });
 
-  return result.toTextStreamResponse();
+    return result.toTextStreamResponse();
+  } catch (error: any) {
+    console.error('Stream generation failed:', error);
+    return new Response(`Stream generation failed: ${error.message}`, { status: 500 });
+  }
 }

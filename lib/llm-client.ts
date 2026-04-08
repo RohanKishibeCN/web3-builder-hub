@@ -40,10 +40,10 @@ function getLanguageModel(options: CallLLMOptions = {}) {
     const kimi = createOpenAI({
       baseURL: 'https://api.moonshot.ai/v1',
       apiKey,
-      compatibility: 'compatible', // 兼容模式：禁用 Kimi 不支持的 json_schema 和 stream_options
     });
     
-    // 如果没有传入模型，默认使用 kimi-k2.5 (最智能的旗舰模型)
+    // Kimi does not support modern strict OpenAI modes fully (e.g. structured outputs)
+    // We use regular prompt + JSON extraction for Kimi if it's a JSON request
     return kimi(options.model || process.env.KIMI_MODEL || 'kimi-k2.5');
   } 
   
@@ -131,6 +131,16 @@ export async function callLLMObject<T>(
   schema: any, // ZodSchema 
   options: CallLLMOptions = {}
 ): Promise<T> {
+  const provider = getCurrentProvider();
+
+  if (provider === 'kimi') {
+    // Kimi does not support Vercel AI SDK's `generateObject` schema enforcing well.
+    // Fallback to text generation + custom parsing
+    const fullPrompt = `${prompt}\n\nPlease respond in valid JSON matching this schema structure. Do not include markdown code blocks, just raw JSON.`;
+    const responseText = await callLLM(fullPrompt, { ...options, systemPrompt: 'You are a helpful assistant that only outputs valid JSON.' });
+    return extractJSON(responseText) as T;
+  }
+
   const model = getLanguageModel(options);
 
   const messages: BasicMessage[] = [];
