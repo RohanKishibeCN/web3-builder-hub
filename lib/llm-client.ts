@@ -40,6 +40,7 @@ function getLanguageModel(options: CallLLMOptions = {}) {
     const kimi = createOpenAI({
       baseURL: 'https://api.moonshot.ai/v1',
       apiKey,
+      compatibility: 'compatible', // 兼容模式：禁用 Kimi 不支持的 json_schema 和 stream_options
     });
     
     // 如果没有传入模型，默认使用 kimi-k2.5 (最智能的旗舰模型)

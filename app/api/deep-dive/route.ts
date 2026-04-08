@@ -198,8 +198,10 @@ async function runDeepDive(limit: number, specificId?: number): Promise<DeepDive
     } else {
       result.failed++;
       result.errors.push(`${project.title}: ${r.error}`);
-      // 失败也更新状态防止死循环
-      await updateProjectStatus(project.id, 'archived');
+      // 仅当是批量任务且失败时，才标记为 archived 防死循环
+      if (!specificId && project.status === 'pending_deep_dive') {
+        await updateProjectStatus(project.id, 'archived');
+      }
     }
 
     await new Promise(r => setTimeout(r, 1000));

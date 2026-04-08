@@ -132,8 +132,9 @@ Day3: ${selectedProject.deep_dive_result?.mvpTimeline?.day3 || '暂无'}
           projectContext: context
         }
       });
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to trigger generation:', err);
+      alert(`Generation failed: ${err.message || 'Unknown error'}`);
     }
   };
 
@@ -147,7 +148,7 @@ Day3: ${selectedProject.deep_dive_result?.mvpTimeline?.day3 || '暂无'}
       if (!res.ok) throw new Error('API failed');
       
       const data = await res.json();
-      if (data.success && data.processed > 0) {
+      if (data.success && data.successCount > 0) {
         // Re-fetch all projects to update the UI
         const updatedProjects = await fetchProjects();
         setProjects(updatedProjects);
@@ -157,7 +158,8 @@ Day3: ${selectedProject.deep_dive_result?.mvpTimeline?.day3 || '暂无'}
           setSelectedProject(updatedSelected);
         }
       } else {
-        alert('Re-evaluation failed or no changes made.');
+        const errorMsg = data.errors && data.errors.length > 0 ? data.errors[0] : 'Unknown error';
+        alert(`Re-evaluation failed: ${errorMsg}`);
       }
     } catch (error) {
       console.error('Failed to re-evaluate:', error);

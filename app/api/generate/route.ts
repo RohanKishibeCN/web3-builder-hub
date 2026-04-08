@@ -15,6 +15,7 @@ export async function POST(req: Request) {
   const kimi = createOpenAI({
     baseURL: 'https://api.moonshot.ai/v1',
     apiKey,
+    compatibility: 'compatible', // 开启兼容模式，防止 Kimi 报错 Unrecognized stream_options
   });
 
   // 使用专门针对代码和前端优化的 kimi-k2-0905-preview 模型
