@@ -56,14 +56,14 @@ function getLanguageModel(options: CallLLMOptions = {}) {
 
     // 使用 Kimi 国际版 API 端点
     const kimi = createOpenAI({
-      baseURL: 'https://api.moonshot.ai/v1',
+      baseURL: 'https://api.moonshot.cn/v1',
       apiKey,
       fetch: customFetch,
     });
     
     // Kimi does not support modern strict OpenAI modes fully (e.g. structured outputs)
     // We use regular prompt + JSON extraction for Kimi if it's a JSON request
-    return kimi(options.model || process.env.KIMI_MODEL || 'kimi-k2.5');
+    return kimi(options.model || process.env.KIMI_MODEL || 'moonshot-v1-32k');
   } 
   
   // 默认回退或显式指定 openai

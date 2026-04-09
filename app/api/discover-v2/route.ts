@@ -100,7 +100,7 @@ ${tweetsContext.slice(0, 15000)}
       ExtractedProjectsSchema, 
       { 
         temperature: 0.2,
-        model: 'kimi-k2-turbo-preview' // 高速版本，处理大量短文本推文抽取
+        model: 'moonshot-v1-8k' // 高速版本，处理大量短文本推文抽取
       }
     );
     return result.projects;

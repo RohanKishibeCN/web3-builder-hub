@@ -109,7 +109,7 @@ ${content.slice(0, 15000)}
       DeepDiveSchema, 
       { 
         temperature: 0.4,
-        model: 'kimi-k2.5' // Kimi 最智能的模型，负责深度研判与 MVP 规划
+        model: 'moonshot-v1-32k' // 使用官方规范模型名称
       }
     );
     return parsed;

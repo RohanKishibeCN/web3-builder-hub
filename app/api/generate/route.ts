@@ -30,13 +30,13 @@ export async function POST(req: Request) {
   };
 
   const kimi = createOpenAI({
-    baseURL: 'https://api.moonshot.ai/v1',
+    baseURL: 'https://api.moonshot.cn/v1',
     apiKey,
     fetch: customFetch,
   });
 
-  // 使用专门针对代码和前端优化的 kimi-k2-0905-preview 模型
-  const model = kimi(process.env.KIMI_GENERATION_MODEL || 'kimi-k2-0905-preview');
+  // 使用专门针对长文本和复杂任务优化的 moonshot-v1-128k 模型
+  const model = kimi(process.env.KIMI_GENERATION_MODEL || 'moonshot-v1-128k');
 
   let systemMessage = '';
   
