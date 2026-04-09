@@ -35,16 +35,3 @@ export const apiLogs = pgTable('api_logs', {
     createdAtIdx: index('idx_api_logs_created_at').on(table.createdAt),
   };
 });
-
-export const dynamicWhitelist = pgTable('dynamic_whitelist', {
-  id: serial('id').primaryKey(),
-  domain: text('domain').notNull(),
-  name: text('name').notNull(),
-  track: text('track'),
-  priority: integer('priority').default(0),
-  source: text('source').notNull(),
-  status: text('status').notNull(),
-  sourceUrl: text('source_url'),
-  discoveredAt: timestamp('discovered_at', { withTimezone: false }).defaultNow(),
-  confirmedAt: timestamp('confirmed_at', { withTimezone: false }),
-});

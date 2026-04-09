@@ -5,8 +5,8 @@
 
 import { sql as vercelSql } from '@vercel/postgres';
 import { drizzle } from 'drizzle-orm/vercel-postgres';
-import { sql, eq, inArray, desc, asc, and, isNotNull, gte, sql as drizzleSql } from 'drizzle-orm';
-import { projects, apiLogs, dynamicWhitelist } from '@/db/schema';
+import { sql, eq, desc, sql as drizzleSql } from 'drizzle-orm';
+import { projects, apiLogs } from '@/db/schema';
 import type { Project, ProjectStatus, DeepDiveResult } from '@/types/project';
 
 // Initialize Drizzle ORM instance
@@ -233,116 +233,4 @@ export async function getProjectStats(): Promise<{
   };
 }
 
-// ==================== Dynamic Whitelist ====================
-
-export interface DynamicWhitelistItem {
-  id?: number;
-  domain: string;
-  name: string;
-  track: string;
-  priority: number;
-  source: 'manual' | 'auto-discovered';
-  status: 'active' | 'pending' | 'rejected';
-  discoveredAt: string;
-  confirmedAt?: string;
-  sourceUrl?: string;
-}
-
-export async function addCandidateDomain(data: {
-  domain: string;
-  name: string;
-  track: string;
-  priority: number;
-  sourceUrl: string;
-}): Promise<{ success: boolean; id?: number; error?: string }> {
-  try {
-    const existing = await db.select({ id: dynamicWhitelist.id })
-      .from(dynamicWhitelist)
-      .where(eq(dynamicWhitelist.domain, data.domain))
-      .limit(1);
-    
-    if (existing.length > 0) {
-      return { success: false, error: 'Domain already exists' };
-    }
-
-    const result = await db.insert(dynamicWhitelist).values({
-      domain: data.domain,
-      name: data.name,
-      track: data.track,
-      priority: data.priority,
-      source: 'auto-discovered',
-      status: 'pending',
-      sourceUrl: data.sourceUrl,
-      discoveredAt: new Date(),
-    }).returning({ id: dynamicWhitelist.id });
-
-    return { success: true, id: result[0].id };
-  } catch (error) {
-    console.error('Add candidate domain error:', error);
-    return { success: false, error: String(error) };
-  }
-}
-
-export async function getPendingCandidates(): Promise<DynamicWhitelistItem[]> {
-  const result = await db.select()
-    .from(dynamicWhitelist)
-    .where(eq(dynamicWhitelist.status, 'pending'))
-    .orderBy(asc(dynamicWhitelist.priority), desc(dynamicWhitelist.discoveredAt));
-
-  return result.map(row => ({
-    id: row.id,
-    domain: row.domain,
-    name: row.name,
-    track: row.track || '',
-    priority: row.priority || 0,
-    source: row.source as any,
-    status: row.status as any,
-    sourceUrl: row.sourceUrl || undefined,
-    discoveredAt: row.discoveredAt?.toISOString() || '',
-    confirmedAt: row.confirmedAt?.toISOString() || undefined,
-  }));
-}
-
-export async function confirmCandidate(
-  id: number, 
-  action: 'confirm' | 'reject'
-): Promise<boolean> {
-  try {
-    if (action === 'confirm') {
-      await db.update(dynamicWhitelist)
-        .set({ status: 'active', confirmedAt: new Date() })
-        .where(eq(dynamicWhitelist.id, id));
-    } else {
-      await db.update(dynamicWhitelist)
-        .set({ status: 'rejected' })
-        .where(eq(dynamicWhitelist.id, id));
-    }
-    return true;
-  } catch (error) {
-    console.error('Confirm candidate error:', error);
-    return false;
-  }
-}
-
-export async function getDynamicWhitelist(): Promise<string[]> {
-  const result = await db.select({ domain: dynamicWhitelist.domain })
-    .from(dynamicWhitelist)
-    .where(eq(dynamicWhitelist.status, 'active'))
-    .orderBy(asc(dynamicWhitelist.priority));
-
-  return result.map(r => r.domain);
-}
-
-export async function cleanupInactiveDomains(days: number = 90): Promise<number> {
-  const result = await db.execute(sql`
-    DELETE FROM dynamic_whitelist 
-    WHERE status = 'active' 
-      AND confirmed_at < NOW() - INTERVAL '${sql.raw(days.toString())} days'
-      AND domain NOT IN (
-        SELECT DISTINCT source FROM projects 
-        WHERE discovered_at > NOW() - INTERVAL '${sql.raw(days.toString())} days'
-      )
-    RETURNING id
-  `);
-  return result.rows.length;
-}
+// ==================== End of Project CRUD ====================
