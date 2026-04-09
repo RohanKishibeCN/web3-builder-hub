@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { fetchProjects } from './actions';
 import { useCompletion } from '@ai-sdk/react';
+import toast from 'react-hot-toast';
 import { 
   Terminal, 
   ExternalLink, 
@@ -146,35 +147,52 @@ Day3: ${selectedProject.deep_dive_result?.mvpTimeline?.day3 || '暂无'}
     }
   };
 
-  const handleReEvaluate = async () => {
+  const handleReEvaluate = () => {
     if (!selectedProject || isReEvaluating) return;
     
     setIsReEvaluating(true);
-    try {
-      // Call the API endpoint
-      const res = await fetch(`/api/deep-dive?id=${selectedProject.id}`);
-      if (!res.ok) throw new Error('API failed');
-      
-      const data = await res.json();
-      if (data.success && data.successCount > 0) {
-        // Re-fetch all projects to update the UI
+    
+    // 方案 A: 即发即弃 (Fire and forget)
+    // 不 await 阻塞等待长达数分钟的请求，而是立刻发出请求并在前端通过 toast 告知用户
+    toast.success(`正在后台深度研判 [${selectedProject.title}]，约需 1 分钟...`, {
+      duration: 6000,
+      icon: '🧠'
+    });
+
+    // 后台发出请求，捕捉网络错误但不阻塞 UI
+    fetch(`/api/deep-dive?id=${selectedProject.id}`)
+      .then(async (res) => {
+        const data = await res.json();
+        if (!data.success) {
+          console.error('Re-evaluation backend error:', data);
+          toast.error(`后台研判失败: ${data.errors?.[0] || 'Unknown error'}`, { duration: 5000 });
+        }
+      })
+      .catch(error => {
+        console.error('Failed to trigger re-evaluation:', error);
+        toast.error('触发研判请求失败');
+      });
+
+    // 设定 1 分钟（60000ms）后自动静默拉取最新数据并更新 UI
+    setTimeout(async () => {
+      try {
         const updatedProjects = await fetchProjects();
         setProjects(updatedProjects);
-        // Update selected project to the new version
-        const updatedSelected = updatedProjects.find((p: Project) => p.id === selectedProject.id);
-        if (updatedSelected) {
-          setSelectedProject(updatedSelected);
-        }
-      } else {
-        const errorMsg = data.errors && data.errors.length > 0 ? data.errors[0] : 'Unknown error';
-        alert(`Re-evaluation failed: ${errorMsg}`);
+        
+        // 静默更新当前选中的项目数据，让新分数和新 idea 自动浮现
+        setSelectedProject(currentSelected => {
+          if (!currentSelected) return null;
+          return updatedProjects.find((p: Project) => p.id === currentSelected.id) || currentSelected;
+        });
+        
+        setIsReEvaluating(false);
+        toast.success('研判数据已静默刷新完毕！', { icon: '✨' });
+      } catch (error) {
+        console.error('Failed to silently refresh data:', error);
+        setIsReEvaluating(false);
+        toast.error('自动刷新数据失败，请手动刷新网页');
       }
-    } catch (error) {
-      console.error('Failed to re-evaluate:', error);
-      alert('Failed to re-evaluate project.');
-    } finally {
-      setIsReEvaluating(false);
-    }
+    }, 60000);
   };
 
   if (loading) {

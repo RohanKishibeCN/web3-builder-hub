@@ -1,4 +1,5 @@
 import './globals.css';
+import { Toaster } from 'react-hot-toast';
 
 export const metadata = {
   title: 'Web3 Builder Hub',
@@ -8,7 +9,10 @@ export const metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="zh">
-      <body className="bg-zinc-950 text-white">{children}</body>
+      <body className="bg-zinc-950 text-white">
+        {children}
+        <Toaster position="top-center" toastOptions={{ style: { background: '#333', color: '#fff' } }} />
+      </body>
     </html>
   )
 }
