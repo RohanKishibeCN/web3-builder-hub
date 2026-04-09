@@ -63,9 +63,10 @@ function getLanguageModel(options: CallLLMOptions = {}) {
     
     // Kimi does not support modern strict OpenAI modes fully (e.g. structured outputs)
     // We use regular prompt + JSON extraction for Kimi if it's a JSON request
-    return kimi(options.model || process.env.KIMI_MODEL || 'kimi-k2.5');
+    // CRITICAL FIX: Use .chat() to prevent Vercel AI SDK 3.0+ from defaulting unknown models to the new /v1/responses endpoint
+    return kimi.chat(options.model || process.env.KIMI_MODEL || 'kimi-k2.5');
   } 
-  
+
   // 默认回退或显式指定 openai
   const apiKey = process.env.LLM_API_KEY || process.env.OPENAI_API_KEY;
   if (!apiKey) throw new Error('OPENAI_API_KEY or LLM_API_KEY is not set');
@@ -74,7 +75,8 @@ function getLanguageModel(options: CallLLMOptions = {}) {
     apiKey,
   });
   
-  return openai(options.model || process.env.OPENAI_MODEL || 'gpt-4o-mini');
+  // CRITICAL FIX: Use .chat() for OpenAI fallback as well
+  return openai.chat(options.model || process.env.OPENAI_MODEL || 'gpt-4o-mini');
 }
 
 /**

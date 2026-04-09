@@ -33,10 +33,13 @@ interface Project {
     prize_roi_score?: number;
     time_roi_score: number;
     time_roi?: number;
+    urgency_score?: number;
     competition_score: number;
     competition?: number;
+    quality_score?: number;
     trend_score: number;
     trend_match?: number;
+    builder_match?: number;
     clarity_score: number;
     rule_clarity?: number;
     reason: string;
@@ -290,9 +293,9 @@ Day3: ${selectedProject.deep_dive_result?.mvpTimeline?.day3 || '暂无'}
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                       {[
                         { label: 'Prize ROI', val: selectedProject.score.prize_score ?? selectedProject.score.prize_roi_score ?? 0 },
-                        { label: 'Time ROI', val: selectedProject.score.time_roi_score ?? selectedProject.score.time_roi ?? 0 },
-                        { label: 'Competition', val: selectedProject.score.competition_score ?? selectedProject.score.competition ?? 0 },
-                        { label: 'Trend Match', val: selectedProject.score.trend_score ?? selectedProject.score.trend_match ?? 0 },
+                        { label: 'Time ROI', val: selectedProject.score.time_roi_score ?? selectedProject.score.time_roi ?? selectedProject.score.urgency_score ?? 0 },
+                        { label: 'Competition', val: selectedProject.score.competition_score ?? selectedProject.score.competition ?? selectedProject.score.quality_score ?? 0 },
+                        { label: 'Trend Match', val: selectedProject.score.trend_score ?? selectedProject.score.trend_match ?? selectedProject.score.builder_match ?? 0 },
                         { label: 'Rule Clarity', val: selectedProject.score.clarity_score ?? selectedProject.score.rule_clarity ?? 0 }
                       ].map((metric) => (
                         <div key={metric.label} className="bg-[#0c0c0e] border border-zinc-800/60 p-3 rounded-md">
