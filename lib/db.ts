@@ -12,20 +12,6 @@ import type { Project, ProjectStatus, DeepDiveResult } from '@/types/project';
 // Initialize Drizzle ORM instance
 export const db = drizzle(vercelSql);
 
-// ==================== DB Initialization ====================
-// We can keep this for backward compatibility or basic checks, 
-// though Drizzle push/migrate is usually preferred.
-export async function initDB(): Promise<{ success: boolean; message: string }> {
-  try {
-    // Basic health check to ensure DB is reachable
-    await vercelSql`SELECT 1`;
-    return { success: true, message: 'Database connection verified' };
-  } catch (error) {
-    console.error('Init DB error:', error);
-    throw error;
-  }
-}
-
 // ==================== API Logs ====================
 
 export async function logApiCall(data: {
@@ -48,30 +34,6 @@ export async function logApiCall(data: {
   } catch (error) {
     console.error('Log API call error:', error);
   }
-}
-
-export async function getApiStats(hours: number = 24): Promise<{
-  totalCalls: number;
-  successCalls: number;
-  errorCalls: number;
-  avgDuration: number;
-}> {
-  const result = await db.execute(sql`
-    SELECT 
-      COUNT(*) as total,
-      COUNT(*) FILTER (WHERE status = 'success') as success,
-      COUNT(*) FILTER (WHERE status = 'error') as error,
-      AVG(duration_ms) as avg_duration
-    FROM api_logs
-    WHERE created_at > NOW() - INTERVAL '${sql.raw(hours.toString())} hours'
-  `);
-
-  return {
-    totalCalls: parseInt(result.rows[0].total as string),
-    successCalls: parseInt(result.rows[0].success as string),
-    errorCalls: parseInt(result.rows[0].error as string),
-    avgDuration: Math.round(parseFloat(result.rows[0].avg_duration as string) || 0),
-  };
 }
 
 // ==================== Project CRUD ====================

@@ -105,9 +105,9 @@ export async function callLLM(prompt: string, options: CallLLMOptions = {}): Pro
 }
 
 /**
- * 从 LLM 响应中提取 JSON (向后兼容，已推荐直接使用 callLLMObject)
+ * 从 LLM 响应中提取 JSON
  */
-export function extractJSON(content: string): any {
+function extractJSON(content: string): any {
   try {
     return JSON.parse(content);
   } catch {
@@ -131,14 +131,6 @@ export function extractJSON(content: string): any {
     }
     throw new Error('Could not extract valid JSON from LLM response');
   }
-}
-
-/**
- * 调用 LLM 返回非结构化的 JSON (通过旧版 API 兼容)
- */
-export async function callLLMJSON(prompt: string, options: CallLLMOptions = {}): Promise<any> {
-  const response = await callLLM(prompt, options);
-  return extractJSON(response);
 }
 
 /**
@@ -202,9 +194,4 @@ export async function callLLMObject<T>(
   return object as T;
 }
 
-/**
- * 流式调用 LLM（预留）
- */
-export async function callLLMStream(prompt: string, options: CallLLMOptions = {}): Promise<string> {
-  return callLLM(prompt, options);
-}
+

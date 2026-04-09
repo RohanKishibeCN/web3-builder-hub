@@ -84,14 +84,6 @@ export interface Project {
   createdAt?: string;
 }
 
-// ==================== 搜索相关 ====================
-
-export interface BraveSearchResult {
-  title: string;
-  url: string;
-  description: string;
-}
-
 // ==================== Kimi 提取结果 ====================
 
 export interface ExtractedProject {
@@ -104,14 +96,6 @@ export interface ExtractedProject {
 }
 
 // ==================== API 响应 ====================
-
-export interface DiscoverResponse {
-  success: boolean;
-  found: number;
-  inserted: number;
-  skipped: number;
-  errors: string[];
-}
 
 export interface DeepDiveResponse {
   success: boolean;
@@ -133,16 +117,4 @@ export interface DailyReportResponse {
     scored: number;
     highScore: number;
   };
-}
-
-// ==================== 域名评估 ====================
-
-export interface DomainEvaluation {
-  domain: string;
-  name: string;
-  track: string;
-  priority: number;
-  score: number;
-  reasons: string[];
-  shouldAdd: boolean;
 }
