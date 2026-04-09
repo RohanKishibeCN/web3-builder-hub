@@ -140,7 +140,7 @@ async function processProject(project: Project): Promise<{
         content || `项目名称: ${project.title}\n简介: ${project.summary}`
       );
     } catch (e: any) {
-      return { success: false, error: `LLM Error: ${e.message}` };
+      return { success: false, error: e.message || 'Unknown LLM Error' };
     }
 
     if (!analysis) {
