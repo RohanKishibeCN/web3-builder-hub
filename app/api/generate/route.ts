@@ -35,9 +35,9 @@ export async function POST(req: Request) {
     fetch: customFetch,
   });
 
-  // 使用专门针对长文本和复杂任务优化的 kimi-k2.5 模型
+  // 使用针对代码生成和前端优化的 kimi-k2-0905-preview 模型
   // CRITICAL FIX: Use .chat() to force /v1/chat/completions endpoint
-  const model = kimi.chat(process.env.KIMI_GENERATION_MODEL || 'kimi-k2.5');
+  const model = kimi.chat(process.env.KIMI_GENERATION_MODEL || 'kimi-k2-0905-preview');
 
   let systemMessage = '';
   

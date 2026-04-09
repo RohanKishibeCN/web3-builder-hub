@@ -99,8 +99,8 @@ ${tweetsContext.slice(0, 15000)}
       prompt, 
       ExtractedProjectsSchema, 
       { 
-        temperature: 1, // Kimi k2.5 requires temperature 1
-        model: 'kimi-k2.5' // 高速版本，处理大量短文本推文抽取
+        temperature: 0.2, // 对于信息抽取任务，保持低温度以确保确定性
+        model: 'kimi-k2-turbo-preview' // 使用高速版本处理批量推文抽取，大幅降低成本并提升速度
       }
     );
     return result.projects;

@@ -115,7 +115,7 @@ ${content.slice(0, 15000)}
       DeepDiveSchema, 
       { 
         temperature: 1, // Kimi k2.5 MUST use temperature 1
-        model: 'kimi-k2.5' // 使用官方规范模型名称
+        model: 'kimi-k2.5' // 使用最高推理能力模型处理复杂研判
       }
     );
     return parsed;
