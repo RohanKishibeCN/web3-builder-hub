@@ -109,7 +109,7 @@ ${content.slice(0, 15000)}
       DeepDiveSchema, 
       { 
         temperature: 0.4,
-        model: 'moonshot-v1-32k' // 使用官方规范模型名称
+        model: 'kimi-k2.5' // 使用官方规范模型名称
       }
     );
     return parsed;
