@@ -21,14 +21,20 @@ export const maxDuration = 300; // 5 minutes max for deep dives
 
 async function extractContent(url: string): Promise<string> {
   try {
-    // 使用 Jina AI Reader（免费）
-    const cleanUrl = url.replace(/^https?:\/\//, '');
-    const response = await fetch(`https://r.jina.ai/http://${cleanUrl}`);
+    // 修复：移除强制的 http 降级，因为绝大部分 Web3 项目（包括 docs.base.org）都是强制 HTTPS
+    // 直接将原 URL 喂给 Jina Reader，它会自动处理协议。
+    const response = await fetch(`https://r.jina.ai/${url}`, {
+      headers: {
+        // 修复：必须显式声明 Accept: application/json，否则 Jina 会返回纯文本 Markdown 导致 response.json() 崩溃
+        'Accept': 'application/json'
+      }
+    });
     
-    if (!response.ok) throw new Error(`Jina AI: ${response.status}`);
+    if (!response.ok) throw new Error(`Jina AI: ${response.status} ${response.statusText}`);
     
-    const data = await response.json();
-    return data.content || '';
+    const json = await response.json();
+    // 修复：Jina API 返回的 JSON 结构真实内容位于 data.content
+    return json.data?.content || json.content || '';
   } catch (error) {
     console.error(`Extract content error for ${url}:`, error);
     return '';
