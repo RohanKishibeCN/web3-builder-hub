@@ -59,7 +59,7 @@ export async function POST(req: Request) {
       model,
       system: systemMessage,
       prompt: fullPrompt,
-      temperature: 0.7,
+      temperature: 1, // Kimi k2.5 requires temperature 1
     });
 
     return result.toTextStreamResponse();

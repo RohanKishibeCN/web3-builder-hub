@@ -99,7 +99,7 @@ ${tweetsContext.slice(0, 15000)}
       prompt, 
       ExtractedProjectsSchema, 
       { 
-        temperature: 0.2,
+        temperature: 1, // Kimi k2.5 requires temperature 1
         model: 'kimi-k2.5' // 高速版本，处理大量短文本推文抽取
       }
     );

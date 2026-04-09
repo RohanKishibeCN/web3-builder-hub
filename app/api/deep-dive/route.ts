@@ -114,7 +114,7 @@ ${content.slice(0, 15000)}
       prompt, 
       DeepDiveSchema, 
       { 
-        temperature: 0.4,
+        temperature: 1, // Kimi k2.5 MUST use temperature 1
         model: 'kimi-k2.5' // 使用官方规范模型名称
       }
     );
