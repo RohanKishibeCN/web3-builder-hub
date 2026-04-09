@@ -6,7 +6,37 @@ export const maxDuration = 60;
 // CRITICAL FIX: Use Edge Runtime to bypass Vercel Serverless Function strict 60s streaming cutoff
 export const runtime = 'edge';
 
+// --- In-Memory Rate Limiter ---
+// These variables persist in the memory of a single V8 Isolate.
+// NOTE: Vercel may spin up multiple isolates, so this is a best-effort per-isolate limit, not a strict global limit.
+let generateRequestCount = 0;
+let generateWindowStartTime = Date.now();
+const WINDOW_SIZE_MS = 60 * 1000; // 1 minute window
+const MAX_REQUESTS_PER_WINDOW = 2; // Allow 2 requests per minute per isolate
+
 export async function POST(req: Request) {
+  // --- Rate Limiting Logic ---
+  const now = Date.now();
+  if (now - generateWindowStartTime > WINDOW_SIZE_MS) {
+    // Time window passed, reset counter
+    generateRequestCount = 0;
+    generateWindowStartTime = now;
+  }
+
+  if (generateRequestCount >= MAX_REQUESTS_PER_WINDOW) {
+    return new Response(
+      JSON.stringify({ 
+        error: 'Too Many Requests', 
+        message: 'Rate limit exceeded: You can only generate 2 proposals/codes per minute to protect API limits.' 
+      }), 
+      { status: 429, headers: { 'Content-Type': 'application/json' } }
+    );
+  }
+
+  // Increment counter for this request
+  generateRequestCount++;
+  // ---------------------------
+
   const { prompt, type, projectContext } = await req.json();
 
   const apiKey = process.env.LLM_API_KEY || process.env.KIMI_API_KEY;

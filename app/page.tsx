@@ -143,7 +143,12 @@ Day3: ${selectedProject.deep_dive_result?.mvpTimeline?.day3 || '暂无'}
       });
     } catch (err: any) {
       console.error('Failed to trigger generation:', err);
-      alert(`Generation failed: ${err.message || 'Unknown error'}`);
+      // 处理来自我们后端限流中间件的报错信息
+      if (err.message && err.message.includes('Rate limit exceeded')) {
+        toast.error('请求太频繁！每分钟只能生成2次，请稍后再试。', { duration: 5000 });
+      } else {
+        toast.error(`Generation failed: ${err.message || 'Unknown error'}`);
+      }
     }
   };
 
