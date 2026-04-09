@@ -1,8 +1,10 @@
 import { streamText } from 'ai';
 import { createOpenAI } from '@ai-sdk/openai';
 
-// Allow streaming responses up to 60 seconds
+// Allow streaming responses up to 60 seconds (Hobby limit) or higher if Pro
 export const maxDuration = 60;
+// CRITICAL FIX: Use Edge Runtime to bypass Vercel Serverless Function strict 60s streaming cutoff
+export const runtime = 'edge';
 
 export async function POST(req: Request) {
   const { prompt, type, projectContext } = await req.json();
