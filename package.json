@@ -4,11 +4,10 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "db:reset": "tsx scripts/reset-db.ts",
-    "build": "npm run db:reset && npm run db:push && next build",
+    "db:migrate": "tsx scripts/migrate.ts",
+    "build": "npm run db:migrate && next build",
     "start": "next start",
     "lint": "next lint",
-    "db:push": "drizzle-kit push --force",
     "db:generate": "drizzle-kit generate",
     "db:studio": "drizzle-kit studio"
   },
