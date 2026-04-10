@@ -25,7 +25,7 @@ interface Project {
   url: string;
   summary: string;
   source: string;
-  discovered_at: string;
+  discovered_at: string | null;
   deadline: string | null;
   prize_pool: string | null;
   score: {
