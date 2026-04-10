@@ -1,20 +1,11 @@
-async function testFetch(url) {
+import { sql } from '@vercel/postgres';
+
+async function main() {
   try {
-    console.log(`Fetching ${url}...`);
-    const res = await fetch(url);
-    console.log(`Status: ${res.status}`);
-    const text = await res.text();
-    console.log(`Length: ${text.length}`);
-    console.log(`Snippet: ${text.slice(0, 100).replace(/\n/g, '')}\n`);
-  } catch (e) {
-    console.error(`Fetch failed for ${url}: ${e.message}\n`);
+    const { rows } = await sql`SELECT * FROM projects`;
+    console.log('Projects:', rows);
+  } catch (error) {
+    console.error('Error:', error);
   }
 }
-
-async function run() {
-  await testFetch('https://blog.sui.io/rss/');
-  await testFetch('https://base.mirror.xyz/feed/atom');
-  await testFetch('https://blog.ethereum.org/feed.xml');
-}
-
-run();
+main();
