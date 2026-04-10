@@ -1,79 +1,73 @@
-# Web3 Builder Hub - 最新项目架构与开发交接文档 (Phase 3 准备版)
+# Web3 Builder Hub - 数据全流程跑通建设方案 (低成本 MVP 版)
 
-## 🎯 一、项目总览与核心目标
-**Web3 Builder Hub** 是一个用于自动化追踪、过滤和评估全网 Web3 开发者机会（Hackathons, Grants, Builder Programs）的智能情报平台。
-- **核心诉求**：低成本、防爬虫封禁、高信噪比。
-- **部署环境**：前端与 API 均部署在 Vercel (Serverless / Edge) 上。
-- **数据库**：Vercel Postgres (Serverless SQL)。
-- **AI 引擎**：月之暗面 Kimi 大模型 (Turbo 用于低成本初筛，K2.5 用于深度研判打分，0905 用于代码/文案生成)。
-- **技术栈**：Next.js (App Router), Tailwind CSS, Drizzle ORM, Lucide React。
+根据最新一轮的代码审查和核心诉求，我们调整了开发优先级。当前阶段（Phase 3）**绝对不再过早地开发自动化调度或 IM 推送功能**。
+
+首要且唯一的目标是：**彻底打通并修复“采集 (Collection) ➡️ 存储 (Storage) ➡️ 分析 (Analysis) ➡️ 展示 (Presentation)”的数据全流程，让每一个环节对用户 100% 可视、可控、可验证。** 只有数据准确展示，后续的高级功能才有意义。
 
 ---
 
-## ✅ 二、当前已完成事项 (Phase 1 & Phase 2 闭环)
+## 🔍 一、 数据管道现状审查与拆解 (Pipeline Status)
 
-目前系统已经完整跑通了**“情报发现 ➡️ 网页内容提取 ➡️ LLM 深度研判打分 ➡️ 前端展示”**的全自动闭环，并对成本和执行效率进行了极致优化。
+经过对 `/workspace` 的全盘源码分析，当前四个阶段的完成度及痛点如下：
 
-### 1. 基础架构与安全 (Phase 1)
-- **数据库重构**：全面接入了 **Drizzle ORM**，数据表定义在 `db/schema.ts` (`projects` 和 `api_logs`)。
-  - **最新优化**：重构了批量插入逻辑，使用 `onConflictDoNothing` 消除了 N+1 查询，极大提升了入库性能。
-- **全站防护**：在 `middleware.ts` 实现了 Basic Auth 密码锁（排除 `/api` 路由以允许 Cron 任务调用）。
-- **限流防刷**：对高成本的 LLM API 接口实现了基于 IP 的内存级限流（Rate Limiting）。
+### ✅ Stage 1: Collection (采集层)
+- **已完成**：多维度情报源拉取已就绪。包含 Tier 1 (RSS 定向抓取)、Alpha Hound (GitHub API + 早期融资抓取，并辅以 Kimi Turbo 低成本去噪初筛)、以及推特热门源 (Apify 抓取)。
+- **痛点 (不可见)**：前端对这三个渠道的运行状态**完全失明**。如果 API 报错、被封禁或触发限流，用户无法得知“系统是否还在健康抓取”。
 
-### 2. 情报拉取与双重漏斗 (Phase 2)
-- **Tier 1 数据源自动抓取 (`/api/discover-tier1`)**：
-  - 零成本、零阻力的原生抓取策略。使用 Node.js 原生 `fetch` + `rss-parser` 每日拉取 Sui, Ethereum Foundation 等 5 个顶级源。
-- **Alpha 猎犬挖掘早期高潜项目 (`/api/discover-alpha`)**：
-  - **渠道 A (CryptoFundraising)**：抓取刚完成 Seed/Pre-seed 轮融资的新项目。
-  - **渠道 B (GitHub API)**：搜索过去 7 天内创建的 Web3 Hackathon/Grant 仓库。
-  - **漏斗 1 (低成本初筛)**：将抓到的几百条标题/简介批量发给便宜的 `kimi-k2-turbo-preview`，过滤掉空投、抽奖等噪音，幸存者入库。
-- **瀑布流网页内容提取器 (`lib/extractor.ts`)**：
-  - 专为应对 Cloudflare 防爬虫机制设计。
-  - **Layer 1 (免费/极速)**：优先使用原生 Fetch + Cheerio 提取纯净正文（移除了沉重的 JSDOM 避免 Vercel OOM）。
-  - **Layer 2 (付费兜底)**：如果被 403 拦截，自动降级调用现有的 `r.jina.ai` 接口。
-- **LLM 深度研判打分 (`/api/deep-dive`) & JSON 反思自愈**：
-  - 将提取的长文交给聪明的 `kimi-k2.5` 进行五维打分（Prize ROI, 趋势匹配度等）并生成 MVP 计划。
-  - **JSON 自愈机制 (`lib/llm-client.ts`)**：捕获 Zod 校验失败的错误，将其作为提示词让 LLM 自己重新修正 JSON 格式，解决了不可控模型在结构化抽取中的坏点问题。
-  - **状态机延迟重试**：数据库增加了 `retryCount` 字段，支持失败项目跨日指数退避重试。
+### ✅ Stage 2: Storage (存储层)
+- **已完成**：基于 Vercel Postgres 和 Drizzle ORM，表结构（`projects`, `api_logs`）完备，且已优化了批量插入性能（消除 N+1 查询，通过 URL 唯一键自动跳过重复项）。
+- **痛点 (不可控)**：数据库中确实记录了 `api_logs` 和大量处于 `pending_deep_dive` / `archived` 状态的项目，但由于缺少交互入口，这些数据在前端成为了永远无法查看的“死信”。
+
+### ⚠️ Stage 3: Analysis (分析层)
+- **已完成**：瀑布流内容提取（Fetch/Cheerio 降级 Jina AI）和 LLM 深度研判（Kimi K2.5 五维打分 + JSON 自愈重试）已实现核心骨架。
+- **需修复 (幻觉盲区)**：在极端反爬虫情况下，如果两层提取全部失败，系统会静默降级为“仅用标题和短简介”去请求 LLM。这会导致昂贵的大模型产生严重的“幻觉评分”和编造分析。同时，没有任何防御机制来拦截无用数据的 Token 消耗。
+
+### ❌ Stage 4: Presentation (展示层)
+- **已完成**：极客风暗色仪表盘 UI（Feed 流、雷达图、Agentic Workspace）。
+- **需修复 (交互断层)**：
+  1. `actions.ts` 仅拉取了已评分的前 100 条数据，用户看不到正在排队或失败的项目。
+  2. UI 缺少空状态（Empty State）骨架屏，当数据不全时右侧面板直接留白。
+  3. 手动触发的“Re-evaluate（重新研判）”按钮使用了非常脆弱的 `setTimeout(..., 60000)` 盲等机制，极易导致前端状态与后端数据脱节。
 
 ---
 
-## 🚀 三、下一步工作计划：Telegram 交互与半自动执行 (Phase 3)
+## 🛠️ 二、 低成本 MVP 建设方案 (Phase 3 详细执行步骤)
 
-目前“高价值情报发现”已经稳固，接下来需要让 Agent 具备**“半自动执行辅助系统”**的能力，让开发者能在 Telegram 中一键生成提案和代码骨架。
+为解决上述痛点，接下来的开发必须严格遵循以下四个步骤，逐步把“黑盒”变成“白盒”。
 
-### 任务 1：开发申请文案生成 API (`/api/generate-proposal`)
-- **目标**：根据研判得出的 MVP 路线图，生成一份高质量的、极客风格的参赛提案（Proposal/Pitch）。
-- **实现方案**：
-  - 创建 REST API 接收 `projectId` 参数。
-  - 查询数据库获取项目的详细分析结果。
-  - 调用 `kimi-k2-0905-preview` 生成文案，包含团队背景、解决的痛点、如何切入该赛道以及技术栈优势。
-  - 返回 JSON 格式的生成结果。
+### Step 1: 建立数据验证与系统透明度 (Visibility)
+- **任务 1.1: 暴露系统健康状态**
+  - 在 `actions.ts` 中新增 `fetchSystemLogs` 方法，拉取 `api_logs` 表最近 10 条抓取记录。
+  - 在 `page.tsx` 左侧边栏或顶部增加一个微型的 "System Status" 面板。一旦有报错或拦截，用醒目颜色（如红色）标示，确保管理员一眼能验证 Collection 层是否健康。
+- **任务 1.2: 漏斗状态全景展示**
+  - 获取项目漏斗全景统计数据。在情报流顶部显示："X 篇已研判 (Scored) / Y 篇队列中 (Pending) / Z 篇已失败 (Failed)"，让数据积压状态彻底透明。
 
-### 任务 2：开发代码模板生成 API (`/api/generate-template`)
-- **目标**：生成一份初始化代码骨架（Code Skeleton），帮助开发者快速启动黑客松项目。
-- **实现方案**：
-  - 创建 REST API 接收 `projectId` 和可选的 `techStack`（如 Solana, React）。
-  - 调用 LLM 生成纯 Markdown 格式的代码骨架，包含：目录结构树、核心智能合约接口定义、前端与合约交互的关键 Hook 示例。
-  - 返回包含 `readme`、`fileStructure` 和 `keyFiles` 详情的 JSON。
+### Step 2: 修复分析层的静默降级漏洞 (Verification)
+- **任务 2.1: 透传上下文完整度标识**
+  - 修改 `lib/extractor.ts`，让返回值从纯字符串变为结构化对象：`{ content: string, source: 'full_html' | 'jina_ai' | 'summary_only' }`。
+- **任务 2.2: 建立 Token 成本防线**
+  - 在 `app/api/deep-dive/route.ts` 喂给 Kimi 进行 15,000 Token 分析之前，增加防御：如果提取的内容和简介均小于 200 字符，直接拦截触发，将状态标为 `insufficient_data`，避免无效燃烧昂贵的 API 费用。
+- **任务 2.3: 前端幻觉警告标示**
+  - 如果数据库记录表明本次 LLM 分析是基于 `summary_only` 强行生成的，在 `page.tsx` 详情面板顶部必须渲染黄色警告徽章：“⚠️ 警告：网页反爬阻断，本研判仅基于简介生成，可能存在幻觉或偏差。”
 
-### 任务 3：构建 Telegram Webhook 交互引擎 (`/api/telegram-webhook`)
-- **目标**：接收用户的 Telegram 消息并触发对应的 Agent 动作。
-- **实现方案**：
-  - 建立 Webhook 接收端点。
-  - 解析用户文本指令：
-    - `GO <projectId>`：调用 `/api/generate-proposal` 并将结果回复给用户。
-    - `CODE <projectId>`：调用 `/api/generate-template` 并将代码骨架回复给用户。
+### Step 3: 重构展示层过滤与交互 (Control)
+- **任务 3.1: Feed 列表多状态过滤**
+  - 在 `page.tsx` 左侧栏增加三个简单的 Tab 过滤器：`[全部 (All)] | [已研判 (Scored)] | [队列中 (Pending)]`。
+  - 修改 `actions.ts` 以接收过滤参数，允许用户主动查阅尚未被大模型处理的原始数据。
+- **任务 3.2: 重构 Re-evaluate 交互逻辑**
+  - 废弃脆弱的定时器盲等。
+  - 在点击“强制重新研判”按钮后，前端显示 Loading 状态，通过 `await fetch('/api/deep-dive?id=...')` 真实等待后端（耗时约 10-30 秒）返回响应，成功后再调用 `fetchProjects()` 刷新本地 UI，实现状态的完美同步。
 
-### 任务 4：Telegram 每日精选推送升级
-- **目标**：将每日的高分项目主动推送到 Telegram 频道。
-- **实现方案**：
-  - 扩展现有的 `daily-report-v2` 逻辑。
-  - 按照精美卡片格式（包含分数、ROI、MVP 计划、以及 `GO <projectId>` 快捷指令提示）向绑定的 Telegram 频道发送消息。
+### Step 4: 补充前端防御性渲染 (Resilience)
+- **任务 4.1: UI 空状态骨架**
+  - 在 `page.tsx` 中，针对选中项目状态为 `pending_deep_dive` 或缺失评分数据时，渲染具有科技感的占位符骨架屏和引导操作，杜绝页面突然留白。
+- **任务 4.2: 原始数据溯源入口**
+  - 在右侧面板顶部增加 `[ 📄 VIEW RAW SOURCE ]` 按钮/折叠面板，展示未经 LLM 处理的原始抓取文本。一旦 AI 研判出问题，用户能立刻对照原文进行人工验证。
 
 ---
 
-## 🛠️ 四、部署与环境注意事项
-- **Kimi API 补丁**：项目中已在 `lib/utils.ts` 中提取了通用的 `kimiCustomFetch`，用于剥离 Vercel AI SDK 自动添加的 `stream_options` 参数，防止 Kimi API 报错 400。升级 AI SDK 时需注意。
-- **数据库迁移**：后续如有表结构改动，请务必执行 `npx drizzle-kit generate` 并将迁移文件提交。
-- **Vercel 配置**：长时间运行的 LLM 任务（如 deep-dive 和 generate）已配置 `maxDuration = 300` 或 `runtime = 'edge'`，请勿随意改回默认的短超时配置。
+## 🎯 交付标准
+当你（或下一个接手的 AI Agent）按照本交接文档完成上述 4 个 Step 的代码修改后：
+系统将具备一个**坚如磐石、完全透明**的低成本 MVP 数据闭环。届时，用户能从 UI 上清晰看到每一条情报是“如何进来的”、“卡在哪里”、“为什么失败”或“凭什么得高分”。
+
+在这个基石之上，后续的 Phase 4（自动化推送与 Telegram 机器人）才具备工程意义。
