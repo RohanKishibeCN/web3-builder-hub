@@ -4,8 +4,8 @@ import type { NextRequest } from 'next/server';
 export function middleware(req: NextRequest) {
   const basicAuth = req.headers.get('authorization');
   
-  // 允许跳过某些公开路由 (如果需要的话，目前全部拦截)
-  // if (req.nextUrl.pathname.startsWith('/api/public')) return NextResponse.next();
+  // 允许 Vercel Cron Job 调用 API 路由
+  if (req.nextUrl.pathname.startsWith('/api/')) return NextResponse.next();
 
   if (basicAuth) {
     const authValue = basicAuth.split(' ')[1];
