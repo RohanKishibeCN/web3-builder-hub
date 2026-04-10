@@ -169,9 +169,31 @@ export async function callLLMObject<T>(
       // Force validation against Zod schema to ensure correct structure
       return schema.parse(parsedJson) as T;
     } catch (zodError) {
-      console.error('Zod validation failed for Kimi output:', JSON.stringify(zodError, null, 2));
-      console.error('Raw parsed JSON was:', JSON.stringify(parsedJson, null, 2));
-      throw new Error(`Zod validation failed: ${zodError}`);
+      console.log('Zod validation failed, attempting self-healing reflection...');
+      
+      // Reflection / Self-Healing Retry
+      const reflectionPrompt = `
+You previously generated a JSON response that failed validation. 
+The validation error was:
+${JSON.stringify(zodError, null, 2)}
+
+Your previous raw output was:
+${responseText}
+
+Please fix the errors and output ONLY the corrected, valid JSON that strictly matches the schema. Do not include any other text or markdown formatting.
+`;
+      try {
+        const retryResponse = await callLLM(reflectionPrompt, { 
+          ...options, 
+          systemPrompt: 'You are a JSON repair AI. You must ONLY output the corrected raw JSON without any markdown formatting.' 
+        });
+        
+        const retryParsedJson = extractJSON(retryResponse);
+        return schema.parse(retryParsedJson) as T;
+      } catch (retryError) {
+        console.error('Self-healing reflection failed:', retryError);
+        throw new Error(`Zod validation failed even after reflection: ${zodError}`);
+      }
     }
   }
 
