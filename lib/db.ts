@@ -107,6 +107,7 @@ export async function getPendingDeepDiveProjects(limitNum: number = 10): Promise
     deadline: row.deadline?.toISOString() || null,
     prizePool: row.prizePool || null,
     status: row.status as ProjectStatus,
+    retryCount: row.retryCount ?? 0,
     score: row.score as any,
     deepDiveResult: row.deepDiveResult as any,
     createdAt: row.createdAt?.toISOString(),
@@ -137,6 +138,7 @@ export async function getScoredProjects(
     deadline: row.deadline?.toISOString(),
     prizePool: row.prize_pool,
     status: row.status as ProjectStatus,
+    retryCount: row.retry_count ?? 0,
     score: row.score,
     deepDiveResult: row.deep_dive_result,
     createdAt: row.created_at?.toISOString(),
@@ -146,22 +148,23 @@ export async function getScoredProjects(
 export async function updateProjectStatus(
   id: number, 
   status: ProjectStatus,
-  deepDiveResult?: DeepDiveResult
+  deepDiveResult?: DeepDiveResult,
+  retryCount?: number
 ): Promise<boolean> {
   try {
+    const updateData: any = { status };
     if (deepDiveResult) {
-      await db.update(projects)
-        .set({ 
-          status,
-          deepDiveResult: deepDiveResult,
-          score: deepDiveResult.score || null
-        })
-        .where(eq(projects.id, id));
-    } else {
-      await db.update(projects)
-        .set({ status })
-        .where(eq(projects.id, id));
+      updateData.deepDiveResult = deepDiveResult;
+      updateData.score = deepDiveResult.score || null;
     }
+    if (retryCount !== undefined) {
+      updateData.retryCount = retryCount;
+    }
+
+    await db.update(projects)
+      .set(updateData)
+      .where(eq(projects.id, id));
+      
     return true;
   } catch (error) {
     console.error('Update project status error:', error);

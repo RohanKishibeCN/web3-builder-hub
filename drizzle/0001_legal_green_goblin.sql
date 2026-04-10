@@ -1,0 +1,1 @@
+ALTER TABLE "projects" ADD COLUMN "retry_count" integer DEFAULT 0;

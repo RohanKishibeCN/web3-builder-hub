@@ -8,6 +8,13 @@
       "when": 1775799887706,
       "tag": "0000_parched_shinko_yamashiro",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1775832693967,
+      "tag": "0001_legal_green_goblin",
+      "breakpoints": true
     }
   ]
 }

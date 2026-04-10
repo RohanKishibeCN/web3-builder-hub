@@ -79,6 +79,7 @@ export interface Project {
   deadline: string | null;
   prizePool: string | null;
   status: ProjectStatus;
+  retryCount?: number;
   score: BaseScore | null;
   deepDiveResult: DeepDiveResult | null;
   createdAt?: string;

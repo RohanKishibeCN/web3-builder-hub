@@ -10,6 +10,7 @@ export const projects = pgTable('projects', {
   deadline: timestamp('deadline', { withTimezone: false }),
   prizePool: text('prize_pool'),
   status: text('status').default('new'),
+  retryCount: integer('retry_count').default(0),
   score: jsonb('score'),
   deepDiveResult: jsonb('deep_dive_result'),
   createdAt: timestamp('created_at', { withTimezone: false }).defaultNow(),

@@ -188,6 +188,7 @@ async function runDeepDive(limit: number, specificId?: number): Promise<DeepDive
         deadline: row.deadline,
         prizePool: row.prize_pool,
         status: row.status as any,
+        retryCount: row.retry_count || 0,
         score: row.score,
         deepDiveResult: row.deep_dive_result,
         createdAt: row.created_at,
@@ -224,7 +225,12 @@ async function runDeepDive(limit: number, specificId?: number): Promise<DeepDive
       result.errors.push(`${project.title}: ${r.error}`);
       // 仅当是批量任务且失败时，才标记为 archived 防死循环
       if (!specificId && project.status === 'pending_deep_dive') {
-        await updateProjectStatus(project.id, 'archived');
+        const currentRetry = project.retryCount || 0;
+        if (currentRetry >= 3) {
+          await updateProjectStatus(project.id, 'archived', undefined, currentRetry + 1);
+        } else {
+          await updateProjectStatus(project.id, 'pending_deep_dive', undefined, currentRetry + 1);
+        }
       }
     }
 
