@@ -1,4 +1,4 @@
-CREATE TABLE "api_logs" (
+CREATE TABLE IF NOT EXISTS "api_logs" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"api_name" text NOT NULL,
 	"status" text NOT NULL,
@@ -9,7 +9,7 @@ CREATE TABLE "api_logs" (
 	"created_at" timestamp DEFAULT now()
 );
 --> statement-breakpoint
-CREATE TABLE "projects" (
+CREATE TABLE IF NOT EXISTS "projects" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"title" text NOT NULL,
 	"url" text NOT NULL,
@@ -25,7 +25,7 @@ CREATE TABLE "projects" (
 	CONSTRAINT "projects_url_unique" UNIQUE("url")
 );
 --> statement-breakpoint
-CREATE INDEX "idx_api_logs_api_name" ON "api_logs" USING btree ("api_name");--> statement-breakpoint
-CREATE INDEX "idx_api_logs_created_at" ON "api_logs" USING btree ("created_at");--> statement-breakpoint
-CREATE INDEX "idx_projects_status" ON "projects" USING btree ("status");--> statement-breakpoint
-CREATE INDEX "idx_projects_discovered_at" ON "projects" USING btree ("discovered_at");
+CREATE INDEX IF NOT EXISTS "idx_api_logs_api_name" ON "api_logs" USING btree ("api_name");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "idx_api_logs_created_at" ON "api_logs" USING btree ("created_at");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "idx_projects_status" ON "projects" USING btree ("status");--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "idx_projects_discovered_at" ON "projects" USING btree ("discovered_at");
