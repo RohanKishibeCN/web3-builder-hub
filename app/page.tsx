@@ -90,6 +90,32 @@ export default function Dashboard() {
     }
   }, [completion, isGenerating]);
 
+  const isNewProject = (dateString: string | null) => {
+    if (!dateString) return false;
+    const discoveredDate = new Date(dateString);
+    const now = new Date();
+    const diffInHours = (now.getTime() - discoveredDate.getTime()) / (1000 * 60 * 60);
+    return diffInHours <= 48;
+  };
+
+  const getSourceBadge = (source: string) => {
+    const isTier1 = /ethereum|sui|avalanche|arbitrum|bnb|dorahacks|devfolio|gitcoin/i.test(source);
+    if (isTier1) {
+      return (
+        <span className="flex items-center text-blue-400/90 bg-blue-400/10 px-1.5 py-0.5 rounded border border-blue-400/20">
+          <Sparkles size={10} className="mr-0.5" />
+          TIER 1
+        </span>
+      );
+    }
+    return (
+      <span className="flex items-center text-orange-400/90 bg-orange-400/10 px-1.5 py-0.5 rounded border border-orange-400/20">
+        <Activity size={10} className="mr-0.5" />
+        ALPHA
+      </span>
+    );
+  };
+
   useEffect(() => {
     fetchProjects().then(data => {
       setProjects(data);
@@ -237,6 +263,11 @@ Day3: ${selectedProject.deep_dive_result?.mvpTimeline?.day3 || '暂无'}
               <div className="flex justify-between items-start mb-2">
                 <h3 className={`font-medium leading-tight line-clamp-2 pr-2 ${selectedProject?.id === p.id ? 'text-white' : 'text-zinc-200'}`}>
                   {p.title}
+                  {isNewProject(p.discovered_at) && (
+                    <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-black tracking-widest bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 align-middle mb-0.5 animate-pulse">
+                      NEW
+                    </span>
+                  )}
                 </h3>
                 {p.score ? (
                   <div className={`shrink-0 flex items-center justify-center w-8 h-8 rounded text-sm font-bold border ${getScoreColor(p.score.total_score)}`}>
@@ -253,7 +284,8 @@ Day3: ${selectedProject.deep_dive_result?.mvpTimeline?.day3 || '暂无'}
                 {p.summary}
               </p>
               
-              <div className="flex flex-wrap gap-2 text-[10px] font-mono">
+              <div className="flex flex-wrap gap-2 text-[10px] font-mono mt-1">
+                {p.source && getSourceBadge(p.source)}
                 {p.prize_pool && p.prize_pool !== 'null' && (
                   <span className="flex items-center text-emerald-400/90 bg-emerald-400/10 px-1.5 py-0.5 rounded">
                     <DollarSign size={10} className="mr-0.5" />
