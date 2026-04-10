@@ -1,5 +1,6 @@
 import { streamText } from 'ai';
 import { createOpenAI } from '@ai-sdk/openai';
+import { kimiCustomFetch } from '@/lib/utils';
 
 // Allow streaming responses up to 60 seconds (Hobby limit) or higher if Pro
 export const maxDuration = 60;
@@ -44,27 +45,10 @@ export async function POST(req: Request) {
     return new Response('API Key not configured', { status: 500 });
   }
 
-  // Define a custom fetch function that removes 'stream_options' from the request body
-  // to avoid Kimi API's "Unrecognized stream_options" 400 error.
-  const customFetch = async (url: URL | RequestInfo, init?: RequestInit): Promise<Response> => {
-    if (init && init.body && typeof init.body === 'string') {
-      try {
-        const bodyObj = JSON.parse(init.body);
-        if (bodyObj.stream_options) {
-          delete bodyObj.stream_options;
-        }
-        init.body = JSON.stringify(bodyObj);
-      } catch (e) {
-        // Ignore JSON parse errors
-      }
-    }
-    return fetch(url, init);
-  };
-
   const kimi = createOpenAI({
     baseURL: 'https://api.moonshot.ai/v1',
     apiKey,
-    fetch: customFetch,
+    fetch: kimiCustomFetch,
   });
 
   // 使用针对代码生成和前端优化的 kimi-k2-0905-preview 模型

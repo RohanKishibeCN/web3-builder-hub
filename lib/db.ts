@@ -74,17 +74,37 @@ export async function insertProject(
 export async function insertProjectsBatch(
   projectsList: Omit<Project, 'id' | 'createdAt'>[]
 ): Promise<{ inserted: number; skipped: number; errors: string[] }> {
+  if (!projectsList || projectsList.length === 0) {
+    return { inserted: 0, skipped: 0, errors: [] };
+  }
+
   const results = { inserted: 0, skipped: 0, errors: [] as string[] };
 
-  for (const project of projectsList) {
-    const result = await insertProject(project);
-    if (result.success) {
-      results.inserted++;
-    } else if (result.error === 'URL already exists') {
-      results.skipped++;
-    } else {
-      results.errors.push(`${project.title}: ${result.error}`);
-    }
+  try {
+    const formattedProjects = projectsList.map(project => ({
+      title: project.title,
+      url: project.url,
+      summary: project.summary,
+      source: project.source,
+      discoveredAt: project.discoveredAt ? new Date(project.discoveredAt) : undefined,
+      deadline: project.deadline ? new Date(project.deadline) : null,
+      prizePool: project.prizePool,
+      status: project.status,
+      retryCount: project.retryCount || 0,
+      score: project.score,
+      deepDiveResult: project.deepDiveResult,
+    }));
+
+    const insertedRows = await db.insert(projects)
+      .values(formattedProjects)
+      .onConflictDoNothing({ target: projects.url })
+      .returning({ id: projects.id });
+
+    results.inserted = insertedRows.length;
+    results.skipped = projectsList.length - insertedRows.length;
+  } catch (error) {
+    console.error('Batch insert error:', error);
+    results.errors.push(`Batch insert failed: ${String(error)}`);
   }
 
   return results;

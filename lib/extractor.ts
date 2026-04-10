@@ -1,6 +1,4 @@
 import * as cheerio from 'cheerio';
-import { Readability } from '@mozilla/readability';
-import { JSDOM } from 'jsdom';
 
 // 常见反爬拦截标识
 const BLOCKED_INDICATORS = [
@@ -62,14 +60,18 @@ export async function extractContentWaterfall(url: string, options: ExtractorOpt
       
       // 检查是否遇到 CF 五秒盾或 403
       if (!isBlocked(html)) {
-        // 使用 JSDOM 解析 HTML
-        const dom = new JSDOM(html, { url });
-        const reader = new Readability(dom.window.document);
-        const article = reader.parse();
+        // 使用 cheerio 提取纯文本（轻量级，替代 JSDOM + Readability 避免 OOM）
+        const $ = cheerio.load(html);
         
-        if (article && article.textContent && article.textContent.trim().length > 100) {
-          console.log(`[Extractor] Layer 1 成功提取 (${article.textContent.length} 字符)`);
-          return article.textContent.trim().slice(0, maxLength);
+        // 移除多余的标签（脚本、样式、导航等非正文内容）
+        $('script, style, noscript, iframe, svg, nav, footer, header, aside').remove();
+        
+        // 提取文本并清理多余空白符
+        const textContent = $('body').text().replace(/\s+/g, ' ').trim();
+        
+        if (textContent.length > 100) {
+          console.log(`[Extractor] Layer 1 成功提取 (${textContent.length} 字符)`);
+          return textContent.slice(0, maxLength);
         } else {
           console.log(`[Extractor] Layer 1 内容太短，尝试 fallback`);
         }
