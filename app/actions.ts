@@ -1,8 +1,8 @@
 'use server';
 
 import { db } from '@/lib/db';
-import { projects } from '@/db/schema';
-import { desc, sql } from 'drizzle-orm';
+import { projects, apiLogs } from '@/db/schema';
+import { desc, sql, eq, or, gt, count } from 'drizzle-orm';
 import { unstable_noStore as noStore } from 'next/cache';
 
 export async function fetchProjects() {
@@ -42,5 +42,105 @@ export async function fetchProjects() {
   } catch (error) {
     console.error('Failed to fetch projects:', error);
     return [];
+  }
+}
+
+// ==========================================
+// DATA DASHBOARD ACTIONS (/data)
+// ==========================================
+
+export async function fetchSystemLogs() {
+  noStore();
+  try {
+    return await db.select()
+      .from(apiLogs)
+      .orderBy(desc(apiLogs.createdAt))
+      .limit(50);
+  } catch (error) {
+    console.error('Failed to fetch system logs:', error);
+    return [];
+  }
+}
+
+export async function fetchStorageStats() {
+  noStore();
+  try {
+    const totalCount = await db.select({ value: count() }).from(projects);
+    const todayCount = await db.select({ value: count() })
+      .from(projects)
+      .where(sql`${projects.createdAt} >= CURRENT_DATE`);
+    
+    const sourceDistribution = await db.select({
+      source: projects.source,
+      count: count()
+    })
+    .from(projects)
+    .groupBy(projects.source);
+
+    const anomalies = await db.select()
+      .from(projects)
+      .where(or(
+        sql`${projects.url} IS NULL OR ${projects.url} = ''`,
+        sql`${projects.summary} IS NULL OR ${projects.summary} = ''`
+      ))
+      .limit(10);
+
+    return {
+      total: totalCount[0].value,
+      today: todayCount[0].value,
+      sources: sourceDistribution,
+      anomalies
+    };
+  } catch (error) {
+    console.error('Failed to fetch storage stats:', error);
+    return { total: 0, today: 0, sources: [], anomalies: [] };
+  }
+}
+
+export async function fetchAnalysisQueue() {
+  noStore();
+  try {
+    const statusCounts = await db.select({
+      status: projects.status,
+      count: count()
+    })
+    .from(projects)
+    .groupBy(projects.status);
+
+    const deadLetters = await db.select()
+      .from(projects)
+      .where(gt(projects.retryCount, 0))
+      .orderBy(desc(projects.retryCount))
+      .limit(20);
+
+    return {
+      statusDistribution: statusCounts,
+      deadLetters
+    };
+  } catch (error) {
+    console.error('Failed to fetch analysis queue:', error);
+    return { statusDistribution: [], deadLetters: [] };
+  }
+}
+
+export async function triggerApi(endpoint: string) {
+  noStore();
+  try {
+    // Determine the base URL based on the environment
+    const baseUrl = process.env.VERCEL_URL 
+      ? `https://${process.env.VERCEL_URL}` 
+      : 'http://localhost:3000';
+      
+    const response = await fetch(`${baseUrl}/api/${endpoint}`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${process.env.CRON_SECRET || ''}`
+      }
+    });
+    const data = await response.json();
+    return { success: response.ok, data };
+  } catch (error) {
+    console.error(`Failed to trigger ${endpoint}:`, error);
+    return { success: false, error: String(error) };
   }
 }
