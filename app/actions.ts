@@ -163,7 +163,8 @@ export async function triggerApi(endpoint: string) {
       method: 'GET', // 改为 GET，因为 discover-tier1 和 discover-alpha 主逻辑写在 GET 中
       headers: {
         'Authorization': `Bearer ${process.env.CRON_SECRET || ''}`
-      }
+      },
+      cache: 'no-store'
     });
 
     // 增加防御性校验：如果后端（如 404 或 500 HTML）返回的不是 JSON，拦截并抛出文本错误，避免 SyntaxError
