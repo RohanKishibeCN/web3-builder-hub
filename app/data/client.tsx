@@ -111,9 +111,16 @@ export default function DataDashboardClient({
                           : <span className="flex items-center gap-1 text-red-400 animate-pulse"><AlertCircle className="w-3 h-3" /> ERR</span>
                         }
                       </td>
-                      <td className="py-3 text-zinc-400">{log.found} / {log.inserted}</td>
+                      <td className="py-3 text-zinc-400">
+                        {log.found} / {log.inserted}
+                        {log.errorMessage?.startsWith('Filtered:') && (
+                          <span className="ml-2 text-yellow-500/80 text-[10px]">({log.errorMessage})</span>
+                        )}
+                      </td>
                       <td className="py-3 text-zinc-500">{log.durationMs}ms</td>
-                      <td className="py-3 text-red-400 max-w-[200px] truncate" title={log.errorMessage}>{log.errorMessage || '-'}</td>
+                      <td className="py-3 text-red-400 max-w-[200px] truncate" title={log.errorMessage}>
+                        {!log.errorMessage?.startsWith('Filtered:') ? (log.errorMessage || '-') : '-'}
+                      </td>
                     </tr>
                   ))}
                 </tbody>

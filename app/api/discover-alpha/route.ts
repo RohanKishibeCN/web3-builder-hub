@@ -192,8 +192,9 @@ export async function GET(request: Request) {
       apiName: 'discover-alpha',
       status: 'success',
       durationMs,
-      found: relevantItems.length,
+      found: allItems.length, // 透传原始抓取量
       inserted: totalInserted,
+      errorMessage: `Filtered: ${relevantItems.length} passed LLM` // 借用 err 字段展示次级过滤数据
     });
 
     return NextResponse.json({
