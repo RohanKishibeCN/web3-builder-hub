@@ -4,6 +4,7 @@ import { db } from '@/lib/db';
 import { projects, apiLogs } from '@/db/schema';
 import { desc, sql, eq, or, gt, count } from 'drizzle-orm';
 import { unstable_noStore as noStore } from 'next/cache';
+import { headers } from 'next/headers';
 
 export async function fetchProjects() {
   noStore();
@@ -126,17 +127,30 @@ export async function fetchAnalysisQueue() {
 export async function triggerApi(endpoint: string) {
   noStore();
   try {
-    // Determine the base URL based on the environment
-    const baseUrl = process.env.VERCEL_URL 
-      ? `https://${process.env.VERCEL_URL}` 
-      : 'http://localhost:3000';
+    // 动态获取当前请求的真实 Host，避免本地端口非 3000 或 Vercel Preview 环境下的域名硬编码问题导致 404
+    const headersList = headers();
+    const host = headersList.get('host') || 'localhost:3000';
+    const protocol = process.env.NODE_ENV === 'development' ? 'http' : 'https';
+    const baseUrl = `${protocol}://${host}`;
       
     const response = await fetch(`${baseUrl}/api/${endpoint}`, {
-      method: 'POST',
+      method: 'GET', // 改为 GET，因为 discover-tier1 和 discover-alpha 主逻辑写在 GET 中
       headers: {
         'Authorization': `Bearer ${process.env.CRON_SECRET || ''}`
       }
     });
+
+    // 增加防御性校验：如果后端（如 404 或 500 HTML）返回的不是 JSON，拦截并抛出文本错误，避免 SyntaxError
+    const contentType = response.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      const text = await response.text();
+      console.error(`[triggerApi] Non-JSON response from ${baseUrl}/api/${endpoint}:`, text.slice(0, 200));
+      return { 
+        success: false, 
+        error: `Invalid response (HTTP ${response.status}). Expected JSON, got ${contentType || 'unknown'}. URL: ${baseUrl}/api/${endpoint}` 
+      };
+    }
+
     const data = await response.json();
     return { success: response.ok, data };
   } catch (error) {
