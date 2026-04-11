@@ -202,15 +202,17 @@ async function fetchTaikai() {
 
 // ==================== LLM 初筛漏斗 ====================
 
+type SourceType = 'funding' | 'github' | 'hackathon';
+
 const FilterSchema = z.object({
   results: z.array(z.object({
     url: z.string(),
-    isRelevant: z.boolean().describe('是否是面向开发者的Hackathon/Grant/Bounty'),
-    reason: z.string().describe('判断理由，过滤掉Airdrop、营销、抽奖')
+    isRelevant: z.boolean().describe('是否符合筛选要求'),
+    reason: z.string().describe('判断理由，必须简明扼要')
   }))
 });
 
-async function filterWithLLM(items: any[]) {
+async function filterWithLLM(items: any[], sourceType: SourceType) {
   if (items.length === 0) return [];
   
   // 分批处理，每批 20 个
@@ -220,13 +222,32 @@ async function filterWithLLM(items: any[]) {
   for (let i = 0; i < items.length; i += batchSize) {
     const batch = items.slice(i, i + batchSize);
     
-    const prompt = `
+    let prompt = '';
+    if (sourceType === 'funding') {
+      prompt = `
+请判断以下列表中的早期融资项目，是否具有"招募开发者"、"推出生态 Grant"、"孵化器(Incubator/Accelerator)"或"黑客松"潜力。
+注意：剔除纯粹的 DeFi 挖矿、消费级 NFT、纯散户向产品。我们只寻找可能有开发者生态建设预期的项目。
+
+项目列表：
+${JSON.stringify(batch.map(b => ({ title: b.title, summary: b.summary, url: b.url })), null, 2)}
+`;
+    } else if (sourceType === 'github') {
+      prompt = `
+请判断以下 GitHub 仓库是否是活跃的 Web3 开发者基础设施、开源赏金任务(Bounty)、开发者 Grant 或黑客松。
+注意：剔除无意义的个人学习仓库、纯粹的空气币发币脚本、以及非 Web3 相关的普通仓库。
+
+项目列表：
+${JSON.stringify(batch.map(b => ({ title: b.title, summary: b.summary, url: b.url })), null, 2)}
+`;
+    } else {
+      prompt = `
 请判断以下列表中的 Web3 项目是否包含面向开发者的机会（如 Hackathon, Grant, Developer Bounty, Builder Program）。
 注意：请严格剔除普通用户的空投(Airdrop)、抽奖(Giveaway)、营销活动(Marketing Campaign)。
 
 项目列表：
 ${JSON.stringify(batch.map(b => ({ title: b.title, summary: b.summary, url: b.url })), null, 2)}
 `;
+    }
 
     try {
       const parsed = await callLLMObject<{ results: { url: string, isRelevant: boolean }[] }>(
@@ -283,8 +304,15 @@ export async function GET(request: Request) {
     const allItems = [...fundraisingItems, ...githubItems, ...ethglobalItems, ...questbookItems, ...taikaiItems];
     console.log(`[Alpha Hound] 抓取到原始数据 ${allItems.length} 条`);
     
-    // 2. LLM 初筛 (漏斗 1)
-    const relevantItems = await filterWithLLM(allItems);
+    // 2. LLM 初筛 (漏斗 1) - 按来源类型分类过滤
+    const filteredFunding = await filterWithLLM(fundraisingItems, 'funding');
+    const filteredGithub = await filterWithLLM(githubItems, 'github');
+    const filteredHackathon = await filterWithLLM(
+      [...ethglobalItems, ...questbookItems, ...taikaiItems], 
+      'hackathon'
+    );
+    
+    const relevantItems = [...filteredFunding, ...filteredGithub, ...filteredHackathon];
     console.log(`[Alpha Hound] 初筛后剩余高潜项目 ${relevantItems.length} 条`);
     
     // 3. 准备入库
