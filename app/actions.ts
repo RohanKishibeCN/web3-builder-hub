@@ -160,7 +160,7 @@ export async function triggerApi(endpoint: string) {
     const baseUrl = `${protocol}://${host}`;
       
     const response = await fetch(`${baseUrl}/api/${endpoint}`, {
-      method: 'GET', // 改为 GET，因为 discover-tier1 和 discover-alpha 主逻辑写在 GET 中
+      method: 'POST', // 强制改用 POST，彻底绕过 Vercel 和 Next.js 的任何默认 GET 缓存
       headers: {
         'Authorization': `Bearer ${process.env.CRON_SECRET || ''}`
       },
