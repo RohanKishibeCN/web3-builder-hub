@@ -15,6 +15,13 @@
       "when": 1775832693967,
       "tag": "0001_legal_green_goblin",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1775895368966,
+      "tag": "0002_magenta_captain_britain",
+      "breakpoints": true
     }
   ]
 }

@@ -255,8 +255,9 @@ export async function GET(request: Request) {
       status: 'success',
       durationMs: 0, // 可以加上计时器
       found: result.processed,
-      inserted: 0, // 修复：deep-dive 不产生物理插入，仅更新状态
-      errorMessage: `Updated: ${result.successCount} | Failed: ${result.failed}` // 将更新量和失败量透传到前端展示
+      inserted: 0,
+      updated: result.successCount, // 正确：将成功更新的数量记录在专属字段
+      errorMessage: result.failed > 0 ? `Failed: ${result.failed}` : undefined
     });
 
     return NextResponse.json({
