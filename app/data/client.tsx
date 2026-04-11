@@ -99,9 +99,9 @@ export default function DataDashboardClient({
                   <ul className="space-y-2 text-xs font-mono text-zinc-400">
                     <li className="flex items-center gap-2"><LinkIcon className="w-3 h-3 text-zinc-600" /> CryptoFundraising (Web Scraper)</li>
                     <li className="flex items-center gap-2"><LinkIcon className="w-3 h-3 text-zinc-600" /> GitHub API (Search: Web3+Grant/Bounty)</li>
-                    <li className="flex items-center gap-2"><LinkIcon className="w-3 h-3 text-zinc-600" /> DoraHacks (Public JSON API)</li>
-                    <li className="flex items-center gap-2"><LinkIcon className="w-3 h-3 text-zinc-600" /> Devfolio (Public JSON API)</li>
-                    <li className="flex items-center gap-2"><LinkIcon className="w-3 h-3 text-zinc-600" /> Gitcoin / Allo Protocol (GraphQL)</li>
+                    <li className="flex items-center gap-2"><LinkIcon className="w-3 h-3 text-zinc-600" /> ETHGlobal (Web Scraper)</li>
+                    <li className="flex items-center gap-2"><LinkIcon className="w-3 h-3 text-zinc-600" /> Questbook (The Graph Subgraph)</li>
+                    <li className="flex items-center gap-2"><LinkIcon className="w-3 h-3 text-zinc-600" /> Taikai (Public JSON API)</li>
                   </ul>
                 </div>
               </div>

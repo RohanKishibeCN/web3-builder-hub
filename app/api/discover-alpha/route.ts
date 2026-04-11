@@ -85,44 +85,11 @@ async function fetchGithubBounties() {
   return items;
 }
 
-// ==================== 抓取：DoraHacks ====================
-async function fetchDoraHacks() {
+// ==================== 抓取：ETHGlobal ====================
+async function fetchETHGlobal() {
   const items: any[] = [];
   try {
-    const response = await fetch('https://dorahacks.io/api/v1/hackathon/list?page=1&size=20&status=active', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-      },
-      body: JSON.stringify({ page: 1, size: 20, status: "active" })
-    });
-    
-    if (!response.ok) return items;
-    
-    const data = await response.json();
-    const hackathons = data.data?.list || [];
-    
-    hackathons.forEach((h: any) => {
-      items.push({
-        title: `[DoraHacks] ${h.name || 'Hackathon'}`,
-        url: `https://dorahacks.io/hackathon/${h.id || h.slug}`,
-        summary: h.brief || h.description || 'Global Web3 Hackathon on DoraHacks',
-        source: 'DoraHacks'
-      });
-    });
-  } catch (error) {
-    console.error('Fetch DoraHacks error:', error);
-  }
-  return items;
-}
-
-// ==================== 抓取：Devfolio ====================
-async function fetchDevfolio() {
-  const items: any[] = [];
-  try {
-    const response = await fetch('https://devfolio.co/api/hackathons', {
-      method: 'GET',
+    const response = await fetch('https://ethglobal.com/events', {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
       }
@@ -130,43 +97,47 @@ async function fetchDevfolio() {
     
     if (!response.ok) return items;
     
-    const data = await response.json();
-    const hackathons = data.hits?.[0]?.hits || data.data || data || []; 
+    const html = await response.text();
+    const $ = cheerio.load(html);
     
-    hackathons.slice(0, 20).forEach((h: any) => {
-      const hackathonData = h._source || h;
-      if (hackathonData.name) {
-        items.push({
-          title: `[Devfolio] ${hackathonData.name}`,
-          url: hackathonData.url || `https://${hackathonData.slug}.devfolio.co/`,
-          summary: hackathonData.description || hackathonData.tagline || 'Web3 Hackathon on Devfolio',
-          source: 'Devfolio'
-        });
+    $('a[href^="/events/"]').each((_, el) => {
+      const url = $(el).attr('href');
+      const name = $(el).text().replace(/\s+/g, ' ').trim();
+      
+      if (name && url && url !== '/events/' && name.length > 5) {
+        const fullUrl = url.startsWith('http') ? url : `https://ethglobal.com${url}`;
+        if (!items.find(i => i.url === fullUrl)) {
+          items.push({
+            title: `[ETHGlobal] ${name}`,
+            url: fullUrl,
+            summary: 'ETHGlobal Hackathon / Builder Event',
+            source: 'ETHGlobal'
+          });
+        }
       }
     });
   } catch (error) {
-    console.error('Fetch Devfolio error:', error);
+    console.error('Fetch ETHGlobal error:', error);
   }
-  return items;
+  return items.slice(0, 20);
 }
 
-// ==================== 抓取：Gitcoin / Allo Protocol ====================
-async function fetchGitcoin() {
+// ==================== 抓取：Questbook ====================
+async function fetchQuestbook() {
   const items: any[] = [];
   try {
     const query = `
-      query GetActiveRounds {
-        rounds(first: 20, orderBy: CREATED_AT_DESC) {
+      query GetWorkspaces {
+        workspaces(first: 20, orderBy: createdAt, orderDirection: desc) {
           id
-          roundMetadata
-          roles {
-            address
-          }
+          title
+          description
+          createdAt
         }
       }
     `;
     
-    const response = await fetch('https://indexer.allo.gitcoin.co/graphql', {
+    const response = await fetch('https://api.thegraph.com/subgraphs/name/questbook/questbook-polygon', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -178,21 +149,53 @@ async function fetchGitcoin() {
     if (!response.ok) return items;
     
     const data = await response.json();
-    const rounds = data.data?.rounds || [];
+    const workspaces = data.data?.workspaces || [];
     
-    rounds.forEach((r: any) => {
-      const meta = r.roundMetadata || {};
-      if (meta.name) {
+    workspaces.forEach((w: any) => {
+      if (w.title) {
         items.push({
-          title: `[Gitcoin] ${meta.name}`,
-          url: `https://grants.gitcoin.co/explorer/round/${r.id}`,
-          summary: meta.description || 'Gitcoin Grants / Allo Protocol Round',
-          source: 'Gitcoin'
+          title: `[Questbook] ${w.title}`,
+          url: `https://questbook.app/workspace/${w.id}`,
+          summary: w.description || 'Questbook Grant Program',
+          source: 'Questbook'
         });
       }
     });
   } catch (error) {
-    console.error('Fetch Gitcoin error:', error);
+    console.error('Fetch Questbook error:', error);
+  }
+  return items;
+}
+
+// ==================== 抓取：Taikai ====================
+async function fetchTaikai() {
+  const items: any[] = [];
+  try {
+    const response = await fetch('https://api.taikai.network/v1/hackathons?status=published&limit=20', {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+      }
+    });
+    
+    if (!response.ok) return items;
+    
+    const data = await response.json();
+    const hackathons = Array.isArray(data) ? data : (data.data || []);
+    
+    hackathons.forEach((h: any) => {
+      if (h.name) {
+        items.push({
+          title: `[Taikai] ${h.name}`,
+          url: `https://taikai.network/hackathon/${h.slug || h.id}`,
+          summary: h.short_description || h.description || 'Taikai Web3 Hackathon',
+          source: 'Taikai'
+        });
+      }
+    });
+  } catch (error) {
+    console.error('Fetch Taikai error:', error);
   }
   return items;
 }
@@ -269,15 +272,15 @@ export async function GET(request: Request) {
   
   try {
     // 1. 并行抓取所有 5 个 Alpha 源
-    const [fundraisingItems, githubItems, doraItems, devfolioItems, gitcoinItems] = await Promise.all([
+    const [fundraisingItems, githubItems, ethglobalItems, questbookItems, taikaiItems] = await Promise.all([
       fetchCryptoFundraising(),
       fetchGithubBounties(),
-      fetchDoraHacks(),
-      fetchDevfolio(),
-      fetchGitcoin()
+      fetchETHGlobal(),
+      fetchQuestbook(),
+      fetchTaikai()
     ]);
     
-    const allItems = [...fundraisingItems, ...githubItems, ...doraItems, ...devfolioItems, ...gitcoinItems];
+    const allItems = [...fundraisingItems, ...githubItems, ...ethglobalItems, ...questbookItems, ...taikaiItems];
     console.log(`[Alpha Hound] 抓取到原始数据 ${allItems.length} 条`);
     
     // 2. LLM 初筛 (漏斗 1)
