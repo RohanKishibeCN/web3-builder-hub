@@ -86,15 +86,27 @@ export async function fetchStorageStats() {
       ))
       .limit(10);
 
+    const recentIngestions = await db.select({
+      id: projects.id,
+      title: projects.title,
+      source: projects.source,
+      status: projects.status,
+      createdAt: projects.createdAt
+    })
+    .from(projects)
+    .orderBy(desc(projects.createdAt))
+    .limit(10);
+
     return {
       total: totalCount[0].value,
       today: todayCount[0].value,
       sources: sourceDistribution,
-      anomalies
+      anomalies,
+      recentIngestions
     };
   } catch (error) {
     console.error('Failed to fetch storage stats:', error);
-    return { total: 0, today: 0, sources: [], anomalies: [] };
+    return { total: 0, today: 0, sources: [], anomalies: [], recentIngestions: [] };
   }
 }
 
@@ -114,13 +126,27 @@ export async function fetchAnalysisQueue() {
       .orderBy(desc(projects.retryCount))
       .limit(20);
 
+    const pendingQueue = await db.select()
+      .from(projects)
+      .where(eq(projects.status, 'pending_deep_dive'))
+      .orderBy(desc(projects.createdAt))
+      .limit(20);
+
+    const latestScored = await db.select()
+      .from(projects)
+      .where(sql`${projects.score} IS NOT NULL`)
+      .orderBy(desc(projects.createdAt))
+      .limit(3);
+
     return {
       statusDistribution: statusCounts,
-      deadLetters
+      deadLetters,
+      pendingQueue,
+      latestScored
     };
   } catch (error) {
     console.error('Failed to fetch analysis queue:', error);
-    return { statusDistribution: [], deadLetters: [] };
+    return { statusDistribution: [], deadLetters: [], pendingQueue: [], latestScored: [] };
   }
 }
 

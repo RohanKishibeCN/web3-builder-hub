@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Activity, Database, BrainCircuit, MonitorPlay, RefreshCw, Play, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Activity, Database, BrainCircuit, MonitorPlay, RefreshCw, Play, AlertCircle, CheckCircle2, Link as LinkIcon, Server } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { triggerApi } from '@/app/actions';
 
@@ -11,10 +11,12 @@ export default function DataDashboardClient({
   systemLogs,
   storageStats,
   analysisQueue,
+  presentationData,
 }: {
   systemLogs: any[];
   storageStats: any;
   analysisQueue: any;
+  presentationData: any[];
 }) {
   const [activeTab, setActiveTab] = useState<Tab>('collection');
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -70,7 +72,40 @@ export default function DataDashboardClient({
       <main className="bg-[#0c0c0e] border border-zinc-800/60 rounded-lg p-6 min-h-[600px]">
         {activeTab === 'collection' && (
           <div className="space-y-6 animate-in fade-in duration-300">
-            <div className="flex items-center justify-between">
+            {/* DATA SOURCES CONFIGURATION */}
+            <div className="bg-zinc-900/30 border border-zinc-800/60 rounded p-4">
+              <h2 className="text-sm font-mono text-zinc-400 mb-4 flex items-center gap-2 border-b border-zinc-800 pb-2">
+                <Server className="w-4 h-4" /> CONFIGURED DATA SOURCES
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <h3 className="text-xs font-semibold text-emerald-400 mb-2 font-mono flex justify-between items-center">
+                    <span>TIER 1 (RSS FEEDS)</span>
+                    <span className="bg-emerald-400/10 px-1.5 py-0.5 rounded text-[10px]">5 Sources</span>
+                  </h3>
+                  <ul className="space-y-2 text-xs font-mono text-zinc-400">
+                    <li className="flex items-center gap-2"><LinkIcon className="w-3 h-3 text-zinc-600" /> Ethereum Foundation</li>
+                    <li className="flex items-center gap-2"><LinkIcon className="w-3 h-3 text-zinc-600" /> Sui Foundation</li>
+                    <li className="flex items-center gap-2"><LinkIcon className="w-3 h-3 text-zinc-600" /> Avalanche</li>
+                    <li className="flex items-center gap-2"><LinkIcon className="w-3 h-3 text-zinc-600" /> Arbitrum</li>
+                    <li className="flex items-center gap-2"><LinkIcon className="w-3 h-3 text-zinc-600" /> BNB Chain</li>
+                  </ul>
+                </div>
+                <div>
+                  <h3 className="text-xs font-semibold text-yellow-400 mb-2 font-mono flex justify-between items-center">
+                    <span>ALPHA (SCRAPERS / APIS)</span>
+                    <span className="bg-yellow-400/10 px-1.5 py-0.5 rounded text-[10px]">2 Sources</span>
+                  </h3>
+                  <ul className="space-y-2 text-xs font-mono text-zinc-400">
+                    <li className="flex items-center gap-2"><LinkIcon className="w-3 h-3 text-zinc-600" /> CryptoFundraising (Web Scraper)</li>
+                    <li className="flex items-center gap-2"><LinkIcon className="w-3 h-3 text-zinc-600" /> GitHub API (Search: Web3+Grant/Bounty)</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+            {/* LOGS SECTION */}
+            <div className="flex items-center justify-between mt-8">
               <h2 className="text-lg font-semibold text-white">API INGESTION LOGS</h2>
               <div className="flex gap-3">
                 <button onClick={() => handleTrigger('discover-tier1')} className="flex items-center gap-2 px-3 py-1.5 bg-emerald-950 text-emerald-400 border border-emerald-900 rounded text-xs font-mono hover:bg-emerald-900 transition-colors">
@@ -104,7 +139,9 @@ export default function DataDashboardClient({
                   {systemLogs.map((log: any) => (
                     <tr key={log.id} className="border-b border-zinc-800/30 hover:bg-zinc-900/30">
                       <td className="py-3 text-zinc-500">{new Date(log.createdAt).toLocaleString()}</td>
-                      <td className="py-3 text-zinc-300">{log.apiName}</td>
+                      <td className="py-3 text-zinc-300">
+                        {log.apiName}
+                      </td>
                       <td className="py-3">
                         {log.status === 'success' 
                           ? <span className="flex items-center gap-1 text-emerald-400"><CheckCircle2 className="w-3 h-3" /> OK</span>
@@ -162,21 +199,30 @@ export default function DataDashboardClient({
               
               <div>
                 <h3 className="text-sm font-mono text-zinc-400 mb-3 border-b border-zinc-800 pb-2 flex items-center gap-2">
-                  <AlertCircle className="w-4 h-4 text-yellow-400" /> ANOMALIES (NULL URL/SUMMARY)
+                  RECENT INGESTIONS
                 </h3>
-                {storageStats.anomalies.length === 0 ? (
-                  <div className="text-sm text-emerald-400 flex items-center gap-2 p-2 bg-emerald-950/20 rounded border border-emerald-900/30">
-                    <CheckCircle2 className="w-4 h-4" /> Database is clean.
-                  </div>
+                {storageStats.recentIngestions?.length === 0 ? (
+                  <div className="text-sm text-zinc-500 italic">No recent data.</div>
                 ) : (
-                  <ul className="space-y-2">
-                    {storageStats.anomalies.map((a: any) => (
-                      <li key={a.id} className="flex justify-between items-center bg-red-950/10 border border-red-900/30 p-2 rounded text-xs font-mono">
-                        <span className="text-zinc-300">ID: {a.id}</span>
-                        <span className="text-red-400">Missing fields</span>
-                      </li>
+                  <div className="space-y-2">
+                    {storageStats.recentIngestions?.map((p: any) => (
+                      <div key={p.id} className="flex justify-between items-center bg-zinc-900/30 border border-zinc-800/50 p-2 rounded text-xs font-mono hover:border-zinc-600 transition-colors">
+                        <div className="flex-1 truncate pr-4">
+                          <span className="text-emerald-400 mr-2">[{p.source}]</span>
+                          <span className="text-zinc-300">{p.title}</span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className={cn(
+                            "px-1.5 py-0.5 rounded text-[9px]",
+                            p.status === 'scored' ? "bg-emerald-950 text-emerald-400" :
+                            p.status === 'pending_deep_dive' ? "bg-yellow-950 text-yellow-400" :
+                            "bg-zinc-800 text-zinc-400"
+                          )}>{p.status}</span>
+                          <span className="text-zinc-600 whitespace-nowrap">{new Date(p.createdAt).toLocaleDateString()}</span>
+                        </div>
+                      </div>
                     ))}
-                  </ul>
+                  </div>
                 )}
               </div>
             </div>
@@ -201,48 +247,114 @@ export default function DataDashboardClient({
                </div>
             </div>
 
-            <div>
-              <h3 className="text-sm font-mono text-orange-400 mb-3 border-b border-orange-900/30 pb-2 flex items-center gap-2">
-                <AlertCircle className="w-4 h-4" /> DEAD LETTER QUEUE (RETRY COUNT &gt; 0)
-              </h3>
-              {analysisQueue.deadLetters.length === 0 ? (
-                <div className="text-sm text-zinc-500 italic p-4 text-center border border-zinc-800/30 rounded border-dashed">
-                  No blocked tasks in queue.
-                </div>
-              ) : (
-                <div className="grid gap-3">
-                  {analysisQueue.deadLetters.map((dl: any) => (
-                    <div key={dl.id} className="flex items-center justify-between bg-zinc-900/30 border border-orange-900/30 p-3 rounded">
-                      <div>
-                        <div className="text-sm text-zinc-200 mb-1">{dl.title}</div>
-                        <div className="text-xs text-zinc-500 font-mono">ID: {dl.id} | Source: {dl.source}</div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div>
+                <h3 className="text-sm font-mono text-orange-400 mb-3 border-b border-orange-900/30 pb-2 flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4" /> BLOCKED (RETRY &gt; 0)
+                </h3>
+                {analysisQueue.deadLetters.length === 0 ? (
+                  <div className="text-sm text-zinc-500 italic p-4 text-center border border-zinc-800/30 rounded border-dashed">
+                    No blocked tasks in queue.
+                  </div>
+                ) : (
+                  <div className="grid gap-3">
+                    {analysisQueue.deadLetters.map((dl: any) => (
+                      <div key={dl.id} className="flex items-center justify-between bg-zinc-900/30 border border-orange-900/30 p-3 rounded hover:bg-zinc-800/50 transition-colors">
+                        <div className="flex-1 truncate pr-4">
+                          <div className="text-sm text-zinc-200 mb-1 truncate">{dl.title}</div>
+                          <div className="text-[10px] text-zinc-500 font-mono">ID: {dl.id} | {dl.source}</div>
+                        </div>
+                        <div className="flex items-center gap-4 shrink-0">
+                          <span className="text-[10px] font-mono text-orange-400 bg-orange-400/10 px-1.5 py-0.5 rounded">
+                            ERR x{dl.retryCount}
+                          </span>
+                          <button onClick={() => handleTrigger(`deep-dive?id=${dl.id}`)} className="text-[10px] font-mono px-2 py-1 bg-zinc-800 hover:bg-emerald-900 hover:text-emerald-400 border border-zinc-700 hover:border-emerald-700 text-zinc-300 rounded transition-all">
+                            RE-RUN
+                          </button>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-4">
-                        <span className="text-xs font-mono text-orange-400 bg-orange-400/10 px-2 py-1 rounded">
-                          RETRY: {dl.retryCount}/3
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <h3 className="text-sm font-mono text-emerald-400 mb-3 border-b border-emerald-900/30 pb-2 flex items-center gap-2">
+                  <Activity className="w-4 h-4" /> PENDING QUEUE
+                </h3>
+                {analysisQueue.pendingQueue?.length === 0 ? (
+                  <div className="text-sm text-zinc-500 italic p-4 text-center border border-zinc-800/30 rounded border-dashed">
+                    Queue is empty.
+                  </div>
+                ) : (
+                  <div className="grid gap-3">
+                    {analysisQueue.pendingQueue?.map((p: any) => (
+                      <div key={p.id} className="flex items-center justify-between bg-zinc-900/30 border border-emerald-900/30 p-3 rounded">
+                        <div className="flex-1 truncate pr-4">
+                          <div className="text-sm text-zinc-200 mb-1 truncate">{p.title}</div>
+                          <div className="text-[10px] text-zinc-500 font-mono">Added: {new Date(p.createdAt).toLocaleString()}</div>
+                        </div>
+                        <span className="text-[10px] font-mono text-emerald-400 bg-emerald-400/10 px-1.5 py-0.5 rounded shrink-0">
+                          WAITING
                         </span>
-                        <button onClick={() => handleTrigger(`deep-dive?id=${dl.id}`)} className="text-xs font-mono px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded transition-colors">
-                          FORCE RE-RUN
-                        </button>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         )}
 
         {activeTab === 'presentation' && (
           <div className="space-y-6 animate-in fade-in duration-300">
-            <h2 className="text-lg font-semibold text-white">INTELLIGENCE OUTPUT</h2>
-            <div className="p-12 text-center border border-zinc-800/30 rounded border-dashed bg-zinc-900/10">
-               <MonitorPlay className="w-8 h-8 text-zinc-600 mx-auto mb-3" />
-               <p className="text-zinc-400 text-sm">
-                 Output presentation layer is currently integrated in the main Dashboard (/).<br/>
-                 This tab is reserved for Phase 4 Markdown Report Previews and Generate API Playground.
-               </p>
+            <div className="flex justify-between items-center">
+              <h2 className="text-lg font-semibold text-white">INTELLIGENCE OUTPUT</h2>
+              <div className="text-xs font-mono text-zinc-500 bg-zinc-900 px-2 py-1 rounded">
+                TOTAL READY: {presentationData.length}
+              </div>
             </div>
+            
+            {presentationData.length === 0 ? (
+              <div className="p-12 text-center border border-zinc-800/30 rounded border-dashed bg-zinc-900/10">
+                 <MonitorPlay className="w-8 h-8 text-zinc-600 mx-auto mb-3" />
+                 <p className="text-zinc-400 text-sm">
+                   No scored projects ready for presentation yet.<br/>
+                   Waiting for data to flow through the pipeline.
+                 </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {presentationData.map((project: any) => (
+                  <div key={project.id} className="bg-zinc-900/50 border border-zinc-800 rounded p-4 flex flex-col">
+                    <div className="flex justify-between items-start mb-3">
+                      <div className="text-xs font-mono text-emerald-400 bg-emerald-400/10 px-2 py-1 rounded">
+                        SCORE: {project.score}
+                      </div>
+                      <div className="text-[10px] text-zinc-500 font-mono">
+                        {project.source}
+                      </div>
+                    </div>
+                    <h3 className="text-sm font-semibold text-zinc-200 mb-2 line-clamp-2">
+                      {project.title}
+                    </h3>
+                    <p className="text-xs text-zinc-400 mb-4 line-clamp-3 flex-1">
+                      {project.summary}
+                    </p>
+                    <div className="flex gap-2 mt-auto">
+                      <a 
+                        href={project.url} 
+                        target="_blank" 
+                        rel="noreferrer"
+                        className="flex-1 text-center bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-[10px] font-mono py-1.5 rounded transition-colors"
+                      >
+                        VIEW SOURCE
+                      </a>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </main>
