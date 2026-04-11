@@ -21,6 +21,7 @@ export async function logApiCall(data: {
   found?: number;
   inserted?: number;
   updated?: number;
+  skipped?: number;
   errorMessage?: string;
 }): Promise<void> {
   try {
@@ -31,6 +32,7 @@ export async function logApiCall(data: {
       found: data.found || 0,
       inserted: data.inserted || 0,
       updated: data.updated || 0,
+      skipped: data.skipped || 0,
       errorMessage: data.errorMessage || null,
     });
   } catch (error) {

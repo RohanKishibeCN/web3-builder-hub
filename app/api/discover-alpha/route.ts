@@ -180,10 +180,12 @@ export async function GET(request: Request) {
     }));
 
     let totalInserted = 0;
+    let totalSkipped = 0;
     if (projectsToInsert.length > 0) {
       const dbResult = await insertProjectsBatch(projectsToInsert);
       totalInserted = dbResult.inserted;
-      console.log(`[Alpha Hound] 成功入库: ${totalInserted}, 跳过(重复): ${dbResult.skipped}`);
+      totalSkipped = dbResult.skipped;
+      console.log(`[Alpha Hound] 成功入库: ${totalInserted}, 跳过(重复): ${totalSkipped}`);
     }
 
     const durationMs = Date.now() - startTime;
@@ -194,6 +196,7 @@ export async function GET(request: Request) {
       durationMs,
       found: allItems.length, // 透传原始抓取量
       inserted: totalInserted,
+      skipped: totalSkipped,
       errorMessage: `Filtered: ${relevantItems.length} passed LLM` // 借用 err 字段展示次级过滤数据
     });
 

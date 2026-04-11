@@ -29,6 +29,7 @@ export const apiLogs = pgTable('api_logs', {
   found: integer('found').default(0),
   inserted: integer('inserted').default(0),
   updated: integer('updated').default(0),
+  skipped: integer('skipped').default(0),
   errorMessage: text('error_message'),
   createdAt: timestamp('created_at', { withTimezone: false }).defaultNow(),
 }, (table) => {

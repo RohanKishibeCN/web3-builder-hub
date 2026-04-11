@@ -129,6 +129,8 @@ export async function GET(request: Request) {
       durationMs,
       found: totalFound,
       inserted: totalInserted,
+      skipped: totalFound - totalInserted,
+      errorMessage: errors.length > 0 ? errors.join(' | ').substring(0, 255) : undefined,
     });
 
     return NextResponse.json({

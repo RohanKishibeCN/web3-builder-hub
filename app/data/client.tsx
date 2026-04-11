@@ -95,7 +95,7 @@ export default function DataDashboardClient({
                       <th className="pb-2 font-normal">TIMESTAMP</th>
                       <th className="pb-2 font-normal">API_NAME</th>
                       <th className="pb-2 font-normal">STATUS</th>
-                      <th className="pb-2 font-normal">FOUND / INSERTED / UPDATED</th>
+                      <th className="pb-2 font-normal">FOUND / INSERTED / UPDATED / SKIPPED</th>
                       <th className="pb-2 font-normal">DURATION</th>
                       <th className="pb-2 font-normal">ERROR</th>
                     </tr>
@@ -112,7 +112,7 @@ export default function DataDashboardClient({
                         }
                       </td>
                       <td className="py-3 text-zinc-400">
-                        {log.found} / {log.inserted} / {log.updated || 0}
+                        {log.found} / {log.inserted} / {log.updated || 0} / {log.skipped || 0}
                         {log.errorMessage?.startsWith('Filtered:') && (
                           <span className="ml-2 text-yellow-500/80 text-[10px]">({log.errorMessage})</span>
                         )}
