@@ -230,7 +230,7 @@ ${JSON.stringify(batch.map(b => ({ title: b.title, summary: b.summary, url: b.ur
         prompt, 
         FilterSchema, 
         { 
-          model: process.env.KIMI_MODEL || 'moonshot-v1-8k', // 使用标准的低成本大模型进行初筛
+          model: process.env.KIMI_MODEL || 'kimi-k2-turbo-preview', // 使用标准的低成本大模型进行初筛
           temperature: 0.2
         }
       );

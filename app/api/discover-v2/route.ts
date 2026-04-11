@@ -100,7 +100,7 @@ ${tweetsContext.slice(0, 15000)}
       ExtractedProjectsSchema, 
       { 
         temperature: 0.1,
-        model: 'moonshot-v1-8k' // 使用标准的 moonshot 模型处理
+        model: 'kimi-k2-turbo-preview' // 使用最快速度的模型处理大量推文
       }
     );
     return result.projects;

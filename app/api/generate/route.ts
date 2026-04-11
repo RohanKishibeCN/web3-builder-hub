@@ -53,7 +53,7 @@ export async function POST(req: Request) {
 
   // 使用针对代码生成和前端优化的 kimi-k2-0905-preview 模型
   // CRITICAL FIX: Use .chat() to force /v1/chat/completions endpoint
-  const model = kimi.chat(process.env.KIMI_GENERATION_MODEL || 'moonshot-v1-32k');
+  const model = kimi.chat(process.env.KIMI_GENERATION_MODEL || 'kimi-k2-0905-preview');
 
   let systemMessage = '';
   
