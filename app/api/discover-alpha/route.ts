@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import * as cheerio from 'cheerio';
 import { callLLMObject } from '@/lib/llm-client';
 import { insertProjectsBatch, logApiCall } from '@/lib/db';
 import { z } from 'zod';
@@ -8,77 +7,113 @@ import type { Project } from '@/types/project';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300; // 5 mins
 
-// ==================== 抓取：CryptoFundraising ====================
-async function fetchCryptoFundraising() {
+// ==================== 抓取：DoraHacks ====================
+async function fetchDoraHacks() {
   const items: any[] = [];
   try {
-    const response = await fetch('https://crypto-fundraising.info/deal-flow/', {
+    // 使用公开 API 获取活跃的 Hackathon 列表
+    const response = await fetch('https://dorahacks.io/api/v1/hackathon/list?page=1&size=20&status=active', {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-      }
-    });
-    
-    if (!response.ok) return items;
-    
-    const html = await response.text();
-    const $ = cheerio.load(html);
-    
-    // 假设抓取前 30 个项目（可以根据页面结构微调，这里用 generic 的方式模拟）
-    $('tr').slice(1, 31).each((_, el) => {
-      const name = $(el).find('td:nth-child(2) a').text().trim();
-      const url = $(el).find('td:nth-child(2) a').attr('href') || '';
-      const round = $(el).find('td:nth-child(5)').text().trim().toLowerCase();
-      const desc = $(el).find('td:nth-child(4)').text().trim();
-      
-      // 只关注早期轮次
-      if (name && (round.includes('seed') || round.includes('pre'))) {
-        items.push({
-          title: `[Seed] ${name}`,
-          url: url || `https://crypto-fundraising.info/project/${name.toLowerCase()}`,
-          summary: desc || 'Early stage Web3 project recently funded',
-          source: 'CryptoFundraising'
-        });
-      }
-    });
-  } catch (error) {
-    console.error('Fetch CryptoFundraising error:', error);
-  }
-  return items;
-}
-
-// ==================== 抓取：GitHub API ====================
-async function fetchGithubBounties() {
-  const items: any[] = [];
-  try {
-    const today = new Date();
-    const lastWeek = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
-    const dateStr = lastWeek.toISOString().split('T')[0];
-    
-    // 搜索最近 7 天包含相关关键词的仓库
-    const q = encodeURIComponent(`"web3" AND ("grant" OR "bounty" OR "hackathon") created:>${dateStr}`);
-    
-    const response = await fetch(`https://api.github.com/search/repositories?q=${q}&sort=updated&order=desc`, {
-      headers: {
-        'Accept': 'application/vnd.github.v3+json',
-        'User-Agent': 'Web3-Builder-Hub'
-        // 'Authorization': `token ${process.env.GITHUB_TOKEN}` // 如果有的话
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
       }
     });
     
     if (!response.ok) return items;
     
     const data = await response.json();
+    const hackathons = data.data?.list || [];
     
-    (data.items || []).slice(0, 20).forEach((repo: any) => {
+    hackathons.forEach((h: any) => {
       items.push({
-        title: `[GitHub] ${repo.full_name}`,
-        url: repo.html_url,
-        summary: repo.description || 'GitHub Web3 Repository',
-        source: 'GitHub Search'
+        title: `[DoraHacks] ${h.name || 'Hackathon'}`,
+        url: `https://dorahacks.io/hackathon/${h.id || h.slug}`,
+        summary: h.brief || h.description || 'Global Web3 Hackathon on DoraHacks',
+        source: 'DoraHacks'
       });
     });
   } catch (error) {
-    console.error('Fetch GitHub error:', error);
+    console.error('Fetch DoraHacks error:', error);
+  }
+  return items;
+}
+
+// ==================== 抓取：Devfolio ====================
+async function fetchDevfolio() {
+  const items: any[] = [];
+  try {
+    // 使用公开 API
+    const response = await fetch('https://api.devfolio.co/api/search/hackathons?filter=open', {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+      }
+    });
+    
+    if (!response.ok) return items;
+    
+    const data = await response.json();
+    const hackathons = data.hits?.[0]?.hits || data.data || []; // Depending on their exact elasticsearch/api response
+    
+    hackathons.slice(0, 20).forEach((h: any) => {
+      const hackathonData = h._source || h;
+      if (hackathonData.name) {
+        items.push({
+          title: `[Devfolio] ${hackathonData.name}`,
+          url: hackathonData.url || `https://${hackathonData.slug}.devfolio.co/`,
+          summary: hackathonData.description || 'Web3 Hackathon on Devfolio',
+          source: 'Devfolio'
+        });
+      }
+    });
+  } catch (error) {
+    console.error('Fetch Devfolio error:', error);
+  }
+  return items;
+}
+
+// ==================== 抓取：Gitcoin / Allo Protocol ====================
+async function fetchGitcoin() {
+  const items: any[] = [];
+  try {
+    // Gitcoin/Allo GraphQL 示例
+    const query = `
+      query GetActiveRounds {
+        rounds(first: 20, orderBy: CREATED_AT_DESC) {
+          id
+          roundMetadata
+          roles {
+            address
+          }
+        }
+      }
+    `;
+    
+    const response = await fetch('https://indexer.allo.gitcoin.co/graphql', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+      },
+      body: JSON.stringify({ query })
+    });
+    
+    if (!response.ok) return items;
+    
+    const data = await response.json();
+    const rounds = data.data?.rounds || [];
+    
+    rounds.forEach((r: any) => {
+      const meta = r.roundMetadata || {};
+      if (meta.name) {
+        items.push({
+          title: `[Gitcoin] ${meta.name}`,
+          url: `https://grants.gitcoin.co/explorer/round/${r.id}`,
+          summary: meta.description || 'Gitcoin Grants / Allo Protocol Round',
+          source: 'Gitcoin'
+        });
+      }
+    });
+  } catch (error) {
+    console.error('Fetch Gitcoin error:', error);
   }
   return items;
 }
@@ -151,13 +186,14 @@ export async function GET(request: Request) {
   console.log('=== Alpha Hound Started ===');
   
   try {
-    // 1. 并行抓取
-    const [fundraisingItems, githubItems] = await Promise.all([
-      fetchCryptoFundraising(),
-      fetchGithubBounties()
+    // 1. 并行抓取 (DoraHacks, Devfolio, Gitcoin)
+    const [doraItems, devfolioItems, gitcoinItems] = await Promise.all([
+      fetchDoraHacks(),
+      fetchDevfolio(),
+      fetchGitcoin()
     ]);
     
-    const allItems = [...fundraisingItems, ...githubItems];
+    const allItems = [...doraItems, ...devfolioItems, ...gitcoinItems];
     console.log(`[Alpha Hound] 抓取到原始数据 ${allItems.length} 条`);
     
     // 2. LLM 初筛 (漏斗 1)

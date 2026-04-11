@@ -93,12 +93,13 @@ export default function DataDashboardClient({
                 </div>
                 <div>
                   <h3 className="text-xs font-semibold text-yellow-400 mb-2 font-mono flex justify-between items-center">
-                    <span>ALPHA (SCRAPERS / APIS)</span>
-                    <span className="bg-yellow-400/10 px-1.5 py-0.5 rounded text-[10px]">2 Sources</span>
+                    <span>ALPHA (JSON / GRAPHQL APIS)</span>
+                    <span className="bg-yellow-400/10 px-1.5 py-0.5 rounded text-[10px]">3 Sources</span>
                   </h3>
                   <ul className="space-y-2 text-xs font-mono text-zinc-400">
-                    <li className="flex items-center gap-2"><LinkIcon className="w-3 h-3 text-zinc-600" /> CryptoFundraising (Web Scraper)</li>
-                    <li className="flex items-center gap-2"><LinkIcon className="w-3 h-3 text-zinc-600" /> GitHub API (Search: Web3+Grant/Bounty)</li>
+                    <li className="flex items-center gap-2"><LinkIcon className="w-3 h-3 text-zinc-600" /> DoraHacks (Public JSON API)</li>
+                    <li className="flex items-center gap-2"><LinkIcon className="w-3 h-3 text-zinc-600" /> Devfolio (Public JSON API)</li>
+                    <li className="flex items-center gap-2"><LinkIcon className="w-3 h-3 text-zinc-600" /> Gitcoin / Allo Protocol (GraphQL)</li>
                   </ul>
                 </div>
               </div>
@@ -306,16 +307,18 @@ export default function DataDashboardClient({
           </div>
         )}
 
-        {activeTab === 'presentation' && (
+        {activeTab === 'presentation' && (() => {
+          const readyProjects = presentationData.filter(p => p.score);
+          return (
           <div className="space-y-6 animate-in fade-in duration-300">
             <div className="flex justify-between items-center">
               <h2 className="text-lg font-semibold text-white">INTELLIGENCE OUTPUT</h2>
               <div className="text-xs font-mono text-zinc-500 bg-zinc-900 px-2 py-1 rounded">
-                TOTAL READY: {presentationData.length}
+                TOTAL READY: {readyProjects.length}
               </div>
             </div>
             
-            {presentationData.length === 0 ? (
+            {readyProjects.length === 0 ? (
               <div className="p-12 text-center border border-zinc-800/30 rounded border-dashed bg-zinc-900/10">
                  <MonitorPlay className="w-8 h-8 text-zinc-600 mx-auto mb-3" />
                  <p className="text-zinc-400 text-sm">
@@ -325,11 +328,11 @@ export default function DataDashboardClient({
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {presentationData.map((project: any) => (
+                {readyProjects.map((project: any) => (
                   <div key={project.id} className="bg-zinc-900/50 border border-zinc-800 rounded p-4 flex flex-col">
                     <div className="flex justify-between items-start mb-3">
                       <div className="text-xs font-mono text-emerald-400 bg-emerald-400/10 px-2 py-1 rounded">
-                        SCORE: {project.score}
+                        SCORE: {typeof project.score === 'object' ? project.score?.total_score || 'N/A' : project.score}
                       </div>
                       <div className="text-[10px] text-zinc-500 font-mono">
                         {project.source}
@@ -356,7 +359,7 @@ export default function DataDashboardClient({
               </div>
             )}
           </div>
-        )}
+        );})()}
       </main>
     </div>
   );
