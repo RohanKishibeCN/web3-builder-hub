@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import Link from 'next/link';
 import { fetchProjects } from './actions';
 import { useCompletion } from '@ai-sdk/react';
 import toast from 'react-hot-toast';
@@ -16,7 +17,8 @@ import {
   RefreshCw,
   Search,
   Sparkles,
-  Lightbulb
+  Lightbulb,
+  Database
 } from 'lucide-react';
 
 interface Project {
@@ -244,8 +246,18 @@ Day3: ${selectedProject.deep_dive_result?.mvpTimeline?.day3 || '暂无'}
             <Activity size={18} className="text-yellow-400" />
             <span>INTELLIGENCE_FEED</span>
           </div>
-          <div className="text-xs font-mono text-zinc-600 bg-zinc-900 px-2 py-1 rounded">
-            {projects.length} RECORDS
+          <div className="flex items-center gap-3">
+            <Link 
+              href="/data" 
+              className="flex items-center gap-1.5 text-[10px] font-mono text-cyan-400 bg-cyan-400/10 px-2 py-1 rounded border border-cyan-400/20 hover:bg-cyan-400/20 hover:shadow-[0_0_8px_rgba(34,211,238,0.3)] transition-all"
+              title="Access Data Dashboard"
+            >
+              <Database size={10} />
+              <span className="tracking-wider">DATA_MATRIX</span>
+            </Link>
+            <div className="text-xs font-mono text-zinc-600 bg-zinc-900 px-2 py-1 rounded">
+              {projects.length} RECORDS
+            </div>
           </div>
         </div>
 
