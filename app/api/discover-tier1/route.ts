@@ -70,7 +70,12 @@ export async function GET(request: Request) {
 
         if (!response.ok) throw new Error(`HTTP Error ${response.status}`);
         
-        const xml = await response.text();
+        let xml = await response.text();
+        
+        // 修复 "Invalid character in entity name" 报错：
+        // 很多博客的 RSS (如 BNB Chain) 会包含未转义的 & 符号，导致 rss-parser 底层的 sax 解析器崩溃
+        xml = xml.replace(/&(?!#?[a-zA-Z0-9]+;)/g, '&amp;');
+        
         const feed = await parser.parseString(xml);
         
         // Filter items from the last 30 days

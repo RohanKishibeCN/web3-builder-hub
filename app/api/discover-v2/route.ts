@@ -99,8 +99,8 @@ ${tweetsContext.slice(0, 15000)}
       prompt, 
       ExtractedProjectsSchema, 
       { 
-        temperature: 0.2, // 对于信息抽取任务，保持低温度以确保确定性
-        model: 'kimi-k2-turbo-preview' // 使用高速版本处理批量推文抽取，大幅降低成本并提升速度
+        temperature: 0.1,
+        model: 'moonshot-v1-8k' // 使用标准的 moonshot 模型处理
       }
     );
     return result.projects;

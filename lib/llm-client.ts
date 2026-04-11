@@ -48,7 +48,7 @@ function getLanguageModel(options: CallLLMOptions = {}) {
     // Kimi does not support modern strict OpenAI modes fully (e.g. structured outputs)
     // We use regular prompt + JSON extraction for Kimi if it's a JSON request
     // CRITICAL FIX: Use .chat() to prevent Vercel AI SDK 3.0+ from defaulting unknown models to the new /v1/responses endpoint
-    return kimi.chat(options.model || process.env.KIMI_MODEL || 'kimi-k2.5');
+    return kimi.chat(options.model || 'moonshot-v1-8k');
   } 
 
   // 默认回退或显式指定 openai

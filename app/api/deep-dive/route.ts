@@ -97,8 +97,8 @@ ${content.slice(0, 15000)}
       prompt, 
       DeepDiveSchema, 
       { 
-        temperature: 1, // Kimi k2.5 MUST use temperature 1
-        model: 'kimi-k2.5' // 使用最高推理能力模型处理复杂研判
+        temperature: 0.3, // 使用标准的温度以获得更稳定的结构化输出
+        model: process.env.DEEP_DIVE_MODEL || 'moonshot-v1-32k' // 优先使用环境变量配置的模型，默认使用标准的 32k 模型处理长文本
       }
     );
     return parsed;

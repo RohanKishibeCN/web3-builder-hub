@@ -54,11 +54,17 @@ async function fetchGithubBounties() {
     
     const q = encodeURIComponent(`"web3" AND ("grant" OR "bounty" OR "hackathon") created:>${dateStr}`);
     
+    const headers: Record<string, string> = {
+      'Accept': 'application/vnd.github.v3+json',
+      'User-Agent': 'Web3-Builder-Hub'
+    };
+
+    if (process.env.GITHUB_PAT) {
+      headers['Authorization'] = `Bearer ${process.env.GITHUB_PAT}`;
+    }
+    
     const response = await fetch(`https://api.github.com/search/repositories?q=${q}&sort=updated&order=desc`, {
-      headers: {
-        'Accept': 'application/vnd.github.v3+json',
-        'User-Agent': 'Web3-Builder-Hub'
-      }
+      headers
     });
     
     if (!response.ok) return items;
@@ -224,7 +230,7 @@ ${JSON.stringify(batch.map(b => ({ title: b.title, summary: b.summary, url: b.ur
         prompt, 
         FilterSchema, 
         { 
-          model: 'kimi-k2-turbo-preview', // 使用低成本大模型进行初筛
+          model: process.env.KIMI_MODEL || 'moonshot-v1-8k', // 使用标准的低成本大模型进行初筛
           temperature: 0.2
         }
       );
@@ -238,6 +244,9 @@ ${JSON.stringify(batch.map(b => ({ title: b.title, summary: b.summary, url: b.ur
       relevantItems.push(...batch.filter(item => relevantUrls.has(item.url)));
     } catch (error) {
       console.error('LLM Filter error for batch:', error);
+      // 兜底策略：如果大模型初筛报错（比如触发限流、模型名错误），为了不丢失数据，我们默认放行这批数据，交给后续的 Deep Dive 环节去深度鉴别
+      console.log(`[Alpha Hound] ⚠️ LLM 初筛失败，兜底放行本批次 ${batch.length} 条数据`);
+      relevantItems.push(...batch);
     }
   }
   
