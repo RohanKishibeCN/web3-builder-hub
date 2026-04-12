@@ -181,12 +181,7 @@ Day3: ${selectedProject.deep_dive_result.mvpTimeline?.day3 || '暂无'}
 
     try {
       // 触发流式请求
-      await complete(context, {
-        body: {
-          type,
-          projectContext: context
-        }
-      });
+      await complete(context, { body: { type, projectContext: context } });
     } catch (err: any) {
       console.error('Failed to trigger generation:', err);
       // 处理来自我们后端限流中间件的报错信息
