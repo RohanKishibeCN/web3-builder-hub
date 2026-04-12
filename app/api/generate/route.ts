@@ -78,7 +78,9 @@ export async function POST(req: Request) {
       temperature: 1, // Kimi k2.5 requires temperature 1
     });
 
-    return result.toTextStreamResponse();
+    // CRITICAL FIX: Use toDataStreamResponse() instead of toTextStreamResponse()
+    // This matches the default protocol expected by useCompletion() in Vercel AI SDK 3.x
+    return result.toDataStreamResponse();
   } catch (error: any) {
     console.error('Stream generation failed:', error);
     return new Response(`Stream generation failed: ${error.message}`, { status: 500 });
