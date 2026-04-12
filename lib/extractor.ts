@@ -64,7 +64,7 @@ export async function extractContentWaterfall(url: string, options: ExtractorOpt
         const $ = cheerio.load(html);
         
         // 移除多余的标签（脚本、样式、导航等非正文内容）
-        $('script, style, noscript, iframe, svg, nav, footer, header, aside').remove();
+        $('script, style, noscript, iframe, svg, nav, footer, header, aside, #comments, .cookie-banner, .legal, .ad-banner').remove();
         
         // 提取文本并清理多余空白符
         const textContent = $('body').text().replace(/\s+/g, ' ').trim();

@@ -89,32 +89,42 @@ export async function callLLM(prompt: string, options: CallLLMOptions = {}): Pro
 }
 
 /**
- * 从 LLM 响应中提取 JSON
+ * 从 LLM 响应中提取 JSON (柔性解析升级版)
  */
 function extractJSON(content: string): any {
+  // 1. 尝试直接解析 (最理想情况)
   try {
     return JSON.parse(content);
-  } catch {
-    const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/);
-    if (jsonMatch) {
-      try {
-        return JSON.parse(jsonMatch[1].trim());
-      } catch {}
-    }
-    const objectMatch = content.match(/\{[\s\S]*\}/);
-    if (objectMatch) {
-      try {
-        return JSON.parse(objectMatch[0]);
-      } catch {}
-    }
-    const arrayMatch = content.match(/\[[\s\S]*\]/);
-    if (arrayMatch) {
-      try {
-        return JSON.parse(arrayMatch[0]);
-      } catch {}
-    }
-    throw new Error('Could not extract valid JSON from LLM response');
+  } catch {}
+
+  // 2. 尝试提取 markdown json 块
+  const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/);
+  if (jsonMatch) {
+    try {
+      return JSON.parse(jsonMatch[1].trim());
+    } catch {}
   }
+
+  // 3. 贪婪匹配：寻找第一个 '{' 和最后一个 '}' 之间的内容
+  const objectMatch = content.match(/\{[\s\S]*\}/);
+  if (objectMatch) {
+    try {
+      // 尝试修复常见的 LLM JSON 尾部逗号截断问题
+      let cleaned = objectMatch[0].replace(/,\s*([}\]])/g, '$1');
+      return JSON.parse(cleaned);
+    } catch {}
+  }
+
+  // 4. 贪婪匹配：寻找第一个 '[' 和最后一个 ']' 之间的内容 (数组场景)
+  const arrayMatch = content.match(/\[[\s\S]*\]/);
+  if (arrayMatch) {
+    try {
+      let cleaned = arrayMatch[0].replace(/,\s*([}\]])/g, '$1');
+      return JSON.parse(cleaned);
+    } catch {}
+  }
+
+  throw new Error('Could not extract valid JSON from LLM response');
 }
 
 /**

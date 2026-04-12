@@ -21,12 +21,14 @@ export const maxDuration = 300; // 5 minutes max for deep dives
 // ==================== 网页内容提取 ====================
 
 async function extractContent(url: string): Promise<string> {
-  return await extractContentWaterfall(url, { maxLength: 12000 });
+  // 放宽至 40,000 字符，搭配 kimi-k2-turbo-preview 处理
+  return await extractContentWaterfall(url, { maxLength: 40000 });
 }
 
 // ==================== LLM 分析 ====================
 
-const DeepDiveSchema = z.object({
+// Step 1: 轻量评估 Schema
+const Step1ScoreSchema = z.object({
   score: z.object({
     total_score: z.coerce.number().min(1).max(10).describe('综合总分(1-10)'),
     prize_score: z.coerce.number().min(1).max(10).describe('奖金吸引力(1-10)'),
@@ -39,26 +41,31 @@ const DeepDiveSchema = z.object({
   trackPotential: z.string().describe('赛道潜力分析(50字内)'),
   suggestedTrack: z.string().describe('建议参与的具体赛道'),
   winProbability: z.coerce.number().min(0).max(100).describe('预计获奖率(0-100)'),
-  participationPlan: z.string().describe('500字参与计划'),
+  riskFlags: z.array(z.string()).optional(),
+  isSuspicious: z.boolean().optional(),
+  suspicionReason: z.string().optional()
+});
+
+// Step 2: 深度发散 Schema
+const Step2IdeationSchema = z.object({
+  participationPlan: z.string().describe('300字参与计划'),
   suggestedTechStack: z.array(z.string()).describe('推荐技术栈'),
   differentiation: z.string().describe('差异化点(100字内)'),
   mvpTimeline: z.object({
     day1: z.string().describe('第一天的计划'),
     day2: z.string().describe('第二天的计划'),
     day3: z.string().describe('第三天的计划')
-  }).describe('3天MVP开发时间线，字段名必须严格为 day1, day2, day3'),
+  }).describe('3天MVP开发时间线'),
   projectIdeas: z.array(z.object({
     name: z.string().describe('项目创意名称 (如: Solana Pay 自动分账插件)'),
     description: z.string().describe('一句话说明产品形态'),
     whyItWins: z.string().describe('为什么这个点子容易拿奖')
-  })).optional().describe('3个极具竞争力的具体项目创意'),
-  riskFlags: z.array(z.string()).optional(),
-  isSuspicious: z.boolean().optional(),
-  suspicionReason: z.string().optional()
+  })).describe('3个极具竞争力的具体项目创意')
 });
 
 async function analyzeWithLLM(project: Project, content: string): Promise<DeepDiveResult | null> {
-  const prompt = `作为 Web3 Agentic Coder 专家，深度分析以下黑客松/开发者资助项目。
+  // === Step 1: 轻量评估 (kimi-k2-turbo-preview) ===
+  const step1Prompt = `作为 Web3 赛事分析师，快速评估以下项目。
 
 项目信息:
 - 名称: ${project.title}
@@ -66,46 +73,105 @@ async function analyzeWithLLM(project: Project, content: string): Promise<DeepDi
 - 奖金: ${project.prizePool || '未明确'}
 - 截止: ${project.deadline || '滚动申请'}
 
-网页内容:
-${content.slice(0, 15000)}
+网页原文:
+${content.slice(0, 40000)}
 
-打分标准 (1-10分)，请务必将以下所有分数包裹在 "score" 对象内：
-1. 综合总分 (total_score): 基于以下各项的综合评估，1-10分。
-2. 奖金吸引力 (prize_score): 总奖池大、下限高、发放稳定币得分高。
-3. 时间性价比 (time_roi_score): MVP开发周期短、提交门槛低、投入产出比高得分高。
-4. 竞争烈度估算 (competition_score): 蓝海公链、冷门但有实力的项目得分高；卷王云集的头部赛事适度降分。
-5. 赛道风口 (trend_score): 契合当前AI+Crypto, DePIN, Bitcoin L2等热门叙事得分高。
-6. 规则清晰度 (clarity_score): 文档完备、规则清晰、利于Agent自动生成代码得分高。
-7. 简短中文评价 (reason): 对该项目的整体评价(50字内)。
+打分标准 (1-10分)，请务必将分数包裹在 "score" 对象内：
+1. 综合总分 (total_score): 综合评估。
+2. 奖金吸引力 (prize_score): 奖池大、稳定币为主得分高。
+3. 时间性价比 (time_roi_score): MVP周期短得分高。
+4. 竞争烈度估算 (competition_score): 卷王少得分高。
+5. 赛道风口 (trend_score): 契合热门叙事得分高。
+6. 规则清晰度 (clarity_score): 文档完备得分高。
+7. 简评 (reason): 50字内。
 
-除打分外，你必须提供以下关键分析信息：
-- 赛道潜力分析 (trackPotential): 50字以内。
-- 建议参与的具体赛道 (suggestedTrack): 简明扼要。
-- 预计获奖率 (winProbability): 0到100的数字。
-- 500字参与计划 (participationPlan): 详细方案。
-- 推荐技术栈 (suggestedTechStack): 字符串数组。
-- 差异化点 (differentiation): 100字以内说明为何与众不同。
-- 3天MVP开发时间线 (mvpTimeline): 必须包含 day1, day2, day3 三个键名。
+额外输出：
+- 赛道潜力 (trackPotential)
+- 建议赛道 (suggestedTrack)
+- 预计获奖率 (winProbability, 0-100纯数字)
 
-最后，请额外充当资深 Web3 产品经理，结合项目要求，提供 3 个极具竞争力的具体项目创意 (projectIdeas)。
-每个创意必须包含：名称 (name)、产品形态 (description) 和获胜理由 (whyItWins)。
+严格输出纯 JSON，不含格式。`;
 
-注意：所有分数 (score.*) 和获奖率 (winProbability) 字段必须输出纯数字（例如 8 或 80），严禁包含“分”、“%”等任何单位或符号。`;
-
+  let step1Result;
   try {
-    const parsed = await callLLMObject<DeepDiveResult>(
-      prompt, 
-      DeepDiveSchema, 
+    step1Result = await callLLMObject<z.infer<typeof Step1ScoreSchema>>(
+      step1Prompt, 
+      Step1ScoreSchema, 
       { 
-        temperature: 1, // Kimi k2.5 MUST use temperature 1
-        model: process.env.DEEP_DIVE_MODEL || 'kimi-k2.5' // 使用最高推理能力模型处理复杂研判
+        temperature: 0.3,
+        model: 'kimi-k2-turbo-preview' // 使用更便宜快速的模型做初步打分
       }
     );
-    return parsed;
   } catch (error: any) {
-    console.error('LLM Analysis Error:', error);
-    throw new Error(error.message || String(error));
+    console.error('Step 1 LLM Analysis Error:', error);
+    throw new Error(`Step 1 Failed: ${error.message || String(error)}`);
   }
+
+  // 如果总分低于 8 分，直接返回，阻断进入高成本的 Step 2
+  if (step1Result.score.total_score < 8) {
+    console.log(`[Deep Dive] ${project.title} 得分 ${step1Result.score.total_score}，不满足 8 分阈值，跳过创意发散。`);
+    return {
+      ...step1Result,
+      // 填充 Step 2 缺失的字段，保证类型兼容
+      participationPlan: '分数未达标，暂未生成参与计划。',
+      suggestedTechStack: [],
+      differentiation: '',
+      mvpTimeline: { day1: '', day2: '', day3: '' },
+      projectIdeas: []
+    } as DeepDiveResult;
+  }
+
+  console.log(`[Deep Dive] ${project.title} 得分 ${step1Result.score.total_score}，进入 Step 2 深度发散...`);
+
+  // === Step 2: 深度发散 (kimi-k2.5) ===
+  const step2Prompt = `作为资深 Web3 产品经理与 Hacker，基于以下信息，为一个高潜项目提供参赛策略。
+
+项目信息:
+- 名称: ${project.title}
+- 简介: ${project.summary}
+- 综合评分: ${step1Result.score.total_score} / 10
+- 赛道潜力: ${step1Result.trackPotential}
+
+请提供：
+1. 300字参与计划 (participationPlan)。
+2. 推荐技术栈 (suggestedTechStack) 字符串数组。
+3. 差异化点 (differentiation) 100字内说明。
+4. 3天MVP开发时间线 (mvpTimeline)，必须包含 day1, day2, day3。
+5. 3个极具竞争力的具体项目创意 (projectIdeas)，包含：名称 (name)、产品形态 (description) 和获胜理由 (whyItWins)。
+
+网页原文参考（截断）:
+${content.slice(0, 10000)}
+
+严格输出纯 JSON，不含格式。`;
+
+  let step2Result;
+  try {
+    step2Result = await callLLMObject<z.infer<typeof Step2IdeationSchema>>(
+      step2Prompt, 
+      Step2IdeationSchema, 
+      { 
+        temperature: 0.8, // 创意发散需要适度的随机性
+        model: process.env.DEEP_DIVE_MODEL || 'kimi-k2.5' // 仅对高分项目调用高配模型
+      }
+    );
+  } catch (error: any) {
+    console.error('Step 2 LLM Analysis Error:', error);
+    // 如果 Step 2 失败，降级返回 Step 1 的结果，防止整体任务溃败
+    return {
+      ...step1Result,
+      participationPlan: '创意发散生成失败',
+      suggestedTechStack: [],
+      differentiation: '',
+      mvpTimeline: { day1: '', day2: '', day3: '' },
+      projectIdeas: []
+    } as DeepDiveResult;
+  }
+
+  // 合并两步结果
+  return {
+    ...step1Result,
+    ...step2Result
+  } as DeepDiveResult;
 }
 
 // ==================== 处理单个项目 ====================
