@@ -4,8 +4,8 @@ import { kimiCustomFetch } from '@/lib/utils';
 
 // Allow streaming responses up to 60 seconds (Hobby limit) or higher if Pro
 export const maxDuration = 60;
-// CRITICAL FIX: Use Edge Runtime to bypass Vercel Serverless Function strict 60s streaming cutoff
-export const runtime = 'edge';
+// Revert to Node.js runtime. Edge runtime is too restrictive on CPU time and memory,
+// causing random 500 errors and TCP connection drops during long Kimi stream generations.
 
 // --- In-Memory Rate Limiter ---
 // These variables persist in the memory of a single V8 Isolate.
