@@ -69,6 +69,7 @@ interface Project {
 export default function Dashboard() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [selectedIdeaIndex, setSelectedIdeaIndex] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [isReEvaluating, setIsReEvaluating] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -84,10 +85,11 @@ export default function Dashboard() {
     }
   });
 
-  // 当选中不同的项目时，清空之前生成的文案
+  // 当选中不同的项目时，清空之前生成的文案并重置选择状态
   useEffect(() => {
     stop();
     setCompletion('');
+    setSelectedIdeaIndex(null);
   }, [selectedProject, stop, setCompletion]);
 
   // 自动滚动到文本框底部
@@ -146,24 +148,35 @@ export default function Dashboard() {
     return 'text-zinc-400';
   };
 
-  const handleGenerate = async (type: 'proposal' | 'code', ideaContext?: string) => {
-    if (!selectedProject) return;
+  const handleGenerate = async (type: 'proposal' | 'code') => {
+    if (!selectedProject || !selectedProject.deep_dive_result) return;
+    
+    if (selectedIdeaIndex === null) {
+      toast.error('请先点击上方列表选择一个项目创意 (Idea)');
+      return;
+    }
 
     if (isGenerating) {
       stop();
     }
 
+    const selectedIdea = selectedProject.deep_dive_result.projectIdeas?.[selectedIdeaIndex];
+    if (!selectedIdea) return;
+    const ideaContext = `【点子名称】${selectedIdea.name}\n【点子形态】${selectedIdea.description}\n【优势】${selectedIdea.whyItWins}`;
+
     // 构建传递给后端的上下文
     const context = `
 项目名称: ${selectedProject.title}
 简述: ${selectedProject.summary}
-目标赛道: ${selectedProject.deep_dive_result?.suggestedTrack || '暂无'}
-${ideaContext ? `\n选择的项目创意: \n${ideaContext}\n` : ''}
+目标赛道: ${selectedProject.deep_dive_result.suggestedTrack || '暂无'}
+选择的项目创意: 
+${ideaContext}
+
 MVP 计划: 
-Day1: ${selectedProject.deep_dive_result?.mvpTimeline?.day1 || '暂无'}
-Day2: ${selectedProject.deep_dive_result?.mvpTimeline?.day2 || '暂无'}
-Day3: ${selectedProject.deep_dive_result?.mvpTimeline?.day3 || '暂无'}
-差异化优势: ${selectedProject.deep_dive_result?.differentiation || '暂无'}
+Day1: ${selectedProject.deep_dive_result.mvpTimeline?.day1 || '暂无'}
+Day2: ${selectedProject.deep_dive_result.mvpTimeline?.day2 || '暂无'}
+Day3: ${selectedProject.deep_dive_result.mvpTimeline?.day3 || '暂无'}
+差异化优势: ${selectedProject.deep_dive_result.differentiation || '暂无'}
 `;
 
     try {
@@ -463,10 +476,24 @@ Day3: ${selectedProject.deep_dive_result?.mvpTimeline?.day3 || '暂无'}
                     </h2>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       {selectedProject.deep_dive_result.projectIdeas.map((idea, idx) => (
-                        <div key={idx} className="bg-[#0c0c0e] border border-zinc-800/60 p-4 rounded-md flex flex-col justify-between group hover:border-yellow-400/50 transition-colors">
+                        <div 
+                          key={idx} 
+                          onClick={() => setSelectedIdeaIndex(idx)}
+                          className={`bg-[#0c0c0e] border p-4 rounded-md flex flex-col justify-between transition-all cursor-pointer ${
+                            selectedIdeaIndex === idx 
+                              ? 'border-yellow-400 shadow-[0_0_15px_rgba(250,204,21,0.15)] ring-1 ring-yellow-400/50' 
+                              : 'border-zinc-800/60 hover:border-zinc-700'
+                          }`}
+                        >
                           <div>
                             <div className="flex items-center justify-between mb-2">
-                              <span className="text-[10px] font-mono text-yellow-400 bg-yellow-400/10 px-1.5 py-0.5 rounded border border-yellow-400/20">IDEA {idx + 1}</span>
+                              <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded border ${
+                                selectedIdeaIndex === idx
+                                  ? 'bg-yellow-400/10 text-yellow-400 border-yellow-400/30'
+                                  : 'bg-zinc-800 text-zinc-400 border-zinc-700'
+                              }`}>
+                                IDEA {idx + 1}
+                              </span>
                             </div>
                             <h3 className="text-sm font-semibold text-white mb-2 leading-tight">{idea.name}</h3>
                             <p className="text-xs text-zinc-400 mb-3 leading-relaxed">{idea.description}</p>
@@ -475,10 +502,19 @@ Day3: ${selectedProject.deep_dive_result?.mvpTimeline?.day3 || '暂无'}
                             </div>
                           </div>
                           <button 
-                            onClick={() => handleGenerate('proposal', `【点子名称】${idea.name}\n【点子形态】${idea.description}\n【优势】${idea.whyItWins}`)}
-                            className="mt-4 w-full py-1.5 text-[10px] font-mono text-zinc-400 bg-zinc-900 border border-zinc-800 rounded hover:text-yellow-400 hover:border-yellow-400/50 transition-colors"
+                            className={`w-full mt-4 py-1.5 text-[10px] font-mono transition-colors border rounded ${
+                              selectedIdeaIndex === idx
+                                ? 'bg-yellow-400/10 text-yellow-400 border-yellow-400/30 hover:bg-yellow-400/20'
+                                : 'bg-zinc-900 text-zinc-400 border-zinc-800 hover:text-zinc-300 hover:bg-zinc-800'
+                            }`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedIdeaIndex(idx);
+                              handleGenerate('proposal');
+                            }}
+                            disabled={isGenerating}
                           >
-                            GENERATE PROPOSAL FOR THIS
+                            {isGenerating && selectedIdeaIndex === idx ? 'GENERATING...' : 'GENERATE PROPOSAL'}
                           </button>
                         </div>
                       ))}
@@ -512,17 +548,16 @@ Day3: ${selectedProject.deep_dive_result?.mvpTimeline?.day3 || '暂无'}
                       <Terminal size={14} className="mr-2" /> Agentic Workspace
                     </h2>
                     <div className="flex gap-2">
-                      <button 
-                        onClick={() => handleGenerate('proposal')}
-                        disabled={isGenerating}
-                        className="flex items-center text-[10px] font-mono px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded border border-zinc-700 transition-colors disabled:opacity-50"
-                      >
-                        <FileText size={12} className="mr-1.5" /> PROPOSAL
-                      </button>
+                      {/* 移除原有的 PROPOSAL 按钮，只保留 CODE SKELETON */}
                       <button 
                         onClick={() => handleGenerate('code')}
-                        disabled={isGenerating}
-                        className="flex items-center text-[10px] font-mono px-3 py-1.5 bg-yellow-400/10 hover:bg-yellow-400/20 text-yellow-400 rounded border border-yellow-400/30 transition-colors disabled:opacity-50"
+                        disabled={isGenerating || selectedIdeaIndex === null}
+                        className={`flex items-center text-[10px] font-mono px-3 py-1.5 rounded border transition-colors ${
+                          selectedIdeaIndex === null
+                            ? 'bg-zinc-800/50 text-zinc-600 border-zinc-800 cursor-not-allowed'
+                            : 'bg-yellow-400/10 text-yellow-400 border-yellow-400/30 hover:bg-yellow-400/20 disabled:opacity-50'
+                        }`}
+                        title={selectedIdeaIndex === null ? 'Please select an Idea first' : 'Generate Code Skeleton for selected Idea'}
                       >
                         <Code size={12} className="mr-1.5" /> CODE SKELETON
                       </button>
