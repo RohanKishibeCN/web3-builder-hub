@@ -75,8 +75,12 @@ export default function Dashboard() {
 
   const { completion, complete, isLoading: isGenerating, stop, error } = useCompletion({
     api: '/api/generate',
+    // CRITICAL FIX: The backend uses toTextStreamResponse(), so we MUST tell the client to parse raw text instead of Data Stream Protocol.
+    // Without this, the frontend will silently discard the text stream and show nothing.
+    streamProtocol: 'text',
     onError: (err) => {
       console.error('Generation Error:', err);
+      toast.error(`生成失败: ${err.message}`);
     }
   });
 
