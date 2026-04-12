@@ -73,7 +73,7 @@ export default function Dashboard() {
   const [isReEvaluating, setIsReEvaluating] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const { completion, complete, isLoading: isGenerating, stop, error } = useCompletion({
+  const { completion, complete, isLoading: isGenerating, stop, error, setCompletion } = useCompletion({
     api: '/api/generate',
     // CRITICAL FIX: The backend uses toTextStreamResponse(), so we MUST tell the client to parse raw text instead of Data Stream Protocol.
     // Without this, the frontend will silently discard the text stream and show nothing.
@@ -86,8 +86,9 @@ export default function Dashboard() {
 
   // 当选中不同的项目时，清空之前生成的文案
   useEffect(() => {
-    if (completion) stop();
-  }, [selectedProject, stop]);
+    stop();
+    setCompletion('');
+  }, [selectedProject, stop, setCompletion]);
 
   // 自动滚动到文本框底部
   useEffect(() => {
@@ -397,49 +398,60 @@ Day3: ${selectedProject.deep_dive_result?.mvpTimeline?.day3 || '暂无'}
                       <Trophy size={14} className="mr-2" /> Strategy & Planning
                     </h2>
                     
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                      <div className="space-y-4">
-                        <div>
-                          <div className="text-[10px] font-mono text-zinc-500 mb-1">RECOMMENDED TRACK</div>
-                          <div className="text-sm text-zinc-200">{selectedProject.deep_dive_result.suggestedTrack}</div>
+                    {selectedProject.score && selectedProject.score.total_score >= 8 ? (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                        <div className="space-y-4">
+                          <div>
+                            <div className="text-[10px] font-mono text-zinc-500 mb-1">RECOMMENDED TRACK</div>
+                            <div className="text-sm text-zinc-200">{selectedProject.deep_dive_result.suggestedTrack}</div>
+                          </div>
+                          <div>
+                            <div className="text-[10px] font-mono text-zinc-500 mb-1">DIFFERENTIATION</div>
+                            <div className="text-sm text-zinc-200">{selectedProject.deep_dive_result.differentiation}</div>
+                          </div>
+                          <div>
+                            <div className="text-[10px] font-mono text-zinc-500 mb-1">TECH STACK</div>
+                            <div className="flex flex-wrap gap-2 mt-1">
+                              {selectedProject.deep_dive_result.suggestedTechStack.map(t => (
+                                <span key={t} className="text-xs font-mono px-2 py-0.5 bg-zinc-800 text-zinc-300 rounded border border-zinc-700/50">
+                                  {t}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
                         </div>
-                        <div>
-                          <div className="text-[10px] font-mono text-zinc-500 mb-1">DIFFERENTIATION</div>
-                          <div className="text-sm text-zinc-200">{selectedProject.deep_dive_result.differentiation}</div>
-                        </div>
-                        <div>
-                          <div className="text-[10px] font-mono text-zinc-500 mb-1">TECH STACK</div>
-                          <div className="flex flex-wrap gap-2 mt-1">
-                            {selectedProject.deep_dive_result.suggestedTechStack.map(t => (
-                              <span key={t} className="text-xs font-mono px-2 py-0.5 bg-zinc-800 text-zinc-300 rounded border border-zinc-700/50">
-                                {t}
-                              </span>
-                            ))}
+
+                        {/* MVP Timeline */}
+                        <div className="bg-[#0c0c0e] border border-zinc-800/60 p-4 rounded-md">
+                          <div className="text-[10px] font-mono text-zinc-500 mb-3">MVP TIMELINE (3 DAYS)</div>
+                          <div className="space-y-4 relative before:absolute before:inset-0 before:ml-[9px] before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-zinc-800">
+                            {['day1', 'day2', 'day3'].map((day, idx) => {
+                              const val = selectedProject.deep_dive_result!.mvpTimeline[day as keyof typeof selectedProject.deep_dive_result.mvpTimeline];
+                              return (
+                                <div key={day} className="relative flex items-start gap-3 group">
+                                  <div className="flex items-center justify-center w-5 h-5 rounded-full border-2 border-zinc-900 bg-zinc-800 group-hover:border-yellow-400 transition-colors z-10 shrink-0">
+                                    <div className="w-1.5 h-1.5 bg-zinc-500 rounded-full group-hover:bg-yellow-400" />
+                                  </div>
+                                  <div className="pt-0.5">
+                                    <div className="text-[10px] font-mono text-yellow-400/80 mb-0.5 uppercase">{day.replace('day', 'Day ')}</div>
+                                    <div className="text-xs text-zinc-400">{val}</div>
+                                  </div>
+                                </div>
+                              )
+                            })}
                           </div>
                         </div>
                       </div>
-
-                      {/* MVP Timeline */}
-                      <div className="bg-[#0c0c0e] border border-zinc-800/60 p-4 rounded-md">
-                        <div className="text-[10px] font-mono text-zinc-500 mb-3">MVP TIMELINE (3 DAYS)</div>
-                        <div className="space-y-4 relative before:absolute before:inset-0 before:ml-[9px] before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-zinc-800">
-                          {['day1', 'day2', 'day3'].map((day, idx) => {
-                            const val = selectedProject.deep_dive_result!.mvpTimeline[day as keyof typeof selectedProject.deep_dive_result.mvpTimeline];
-                            return (
-                              <div key={day} className="relative flex items-start gap-3 group">
-                                <div className="flex items-center justify-center w-5 h-5 rounded-full border-2 border-zinc-900 bg-zinc-800 group-hover:border-yellow-400 transition-colors z-10 shrink-0">
-                                  <div className="w-1.5 h-1.5 bg-zinc-500 rounded-full group-hover:bg-yellow-400" />
-                                </div>
-                                <div className="pt-0.5">
-                                  <div className="text-[10px] font-mono text-yellow-400/80 mb-0.5 uppercase">{day.replace('day', 'Day ')}</div>
-                                  <div className="text-xs text-zinc-400">{val}</div>
-                                </div>
-                              </div>
-                            )
-                          })}
+                    ) : (
+                      <div className="flex flex-col items-center justify-center p-8 bg-zinc-900/30 rounded-lg border border-zinc-800/50 border-dashed text-center mb-6">
+                        <Trophy size={32} className="text-zinc-600 mb-3" />
+                        <div className="text-sm font-medium text-zinc-300 mb-1">Strategy Not Generated</div>
+                        <div className="text-xs text-zinc-500 max-w-md">
+                          This project scored {selectedProject.score?.total_score}/10. 
+                          Strategic planning and MVP timelines are only generated for high-potential projects (score ≥ 8) to save API costs.
                         </div>
                       </div>
-                    </div>
+                    )}
                   </section>
                 )}
 
