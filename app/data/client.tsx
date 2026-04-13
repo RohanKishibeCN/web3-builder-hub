@@ -140,9 +140,9 @@ export default function DataDashboardClient({
                 </thead>
                 <tbody>
                   {systemLogs.map((log: any) => (
-                    <tr key={log.id} className="border-b border-claude-border/30 hover:bg-claude-surface">
-                      <td className="py-3 text-claude-text-tertiary">{new Date(log.createdAt).toLocaleString()}</td>
-                      <td className="py-3 text-claude-near-black">
+                    <tr key={log.id} className="border-b border-claude-border/20 hover:bg-claude-near-black/50">
+                      <td className="py-3 text-claude-surface/60">{new Date(log.createdAt).toLocaleString()}</td>
+                      <td className="py-3 text-claude-surface/90">
                         {log.apiName}
                       </td>
                       <td className="py-3">
@@ -151,13 +151,13 @@ export default function DataDashboardClient({
                           : <span className="flex items-center gap-1 text-claude-error animate-pulse"><AlertCircle className="w-3 h-3" /> ERR</span>
                         }
                       </td>
-                      <td className="py-3 text-claude-text-secondary">
+                      <td className="py-3 text-claude-surface/70">
                         {log.found} / {log.inserted} / {log.updated || 0} / {log.skipped || 0}
                         {log.errorMessage?.startsWith('Filtered:') && (
                           <span className="ml-2 text-yellow-500/80 text-[10px]">({log.errorMessage})</span>
                         )}
                       </td>
-                      <td className="py-3 text-claude-text-tertiary">{log.durationMs}ms</td>
+                      <td className="py-3 text-claude-surface/60">{log.durationMs}ms</td>
                       <td className="py-3 text-claude-error max-w-[200px] truncate" title={log.errorMessage}>
                         {!log.errorMessage?.startsWith('Filtered:') ? (log.errorMessage || '-') : '-'}
                       </td>
