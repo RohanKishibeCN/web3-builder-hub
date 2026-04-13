@@ -129,7 +129,7 @@ export default function DataDashboardClient({
             <div className="bg-claude-surface-dark border border-claude-border rounded p-4 font-mono text-xs overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="text-claude-text-silver border-b border-claude-border">
+                  <tr className="text-claude-border border-b border-claude-text-secondary/30">
                       <th className="pb-2 font-normal">TIMESTAMP</th>
                       <th className="pb-2 font-normal">API_NAME</th>
                       <th className="pb-2 font-normal">STATUS</th>
