@@ -136,15 +136,15 @@ export default function Dashboard() {
   }, []);
 
   const getScoreColor = (score: number) => {
-    if (score >= 9) return 'text-emerald-400 border-emerald-400/30 bg-emerald-400/10 shadow-[0_0_10px_rgba(52,211,153,0.2)]';
-    if (score >= 8) return 'text-claude-brand border-claude-brand/30 bg-claude-brand/10 shadow-[0_0_10px_rgba(250,204,21,0.2)]';
-    if (score >= 6) return 'text-claude-text-secondary border-claude-border-strong bg-claude-border-strong';
+    if (score >= 9) return 'text-claude-brand border-claude-brand/30 bg-claude-brand/10 shadow-[0_0_10px_rgba(201,100,66,0.1)]';
+    if (score >= 8) return 'text-claude-accent border-claude-accent/30 bg-claude-accent/10 shadow-[0_0_10px_rgba(217,119,87,0.1)]';
+    if (score >= 6) return 'text-claude-text-secondary border-claude-border bg-claude-surface';
     return 'text-claude-text-tertiary border-claude-border bg-claude-sand';
   };
 
   const getScoreTextColor = (score: number) => {
-    if (score >= 9) return 'text-emerald-400';
-    if (score >= 8) return 'text-claude-brand';
+    if (score >= 9) return 'text-claude-brand';
+    if (score >= 8) return 'text-claude-accent';
     return 'text-claude-text-secondary';
   };
 
@@ -262,7 +262,7 @@ Day3: ${selectedProject.deep_dive_result.mvpTimeline?.day3 || '暂无'}
           <div className="flex items-center gap-3">
             <Link 
               href="/data" 
-              className="flex items-center gap-1.5 text-[10px] font-mono text-cyan-400 bg-cyan-400/10 px-2 py-1 rounded border border-cyan-400/20 hover:bg-cyan-400/20 hover:shadow-[0_0_8px_rgba(34,211,238,0.3)] transition-all"
+              className="flex items-center gap-1.5 text-[10px] font-mono text-claude-near-black bg-claude-surface px-2 py-1 rounded border border-claude-border hover:bg-claude-sand hover:shadow-claude-whisper transition-all"
               title="Access Data Dashboard"
             >
               <Database size={10} />
@@ -281,15 +281,15 @@ Day3: ${selectedProject.deep_dive_result.mvpTimeline?.day3 || '暂无'}
               onClick={() => setSelectedProject(p)}
               className={`p-4 rounded-lg cursor-pointer transition-all duration-200 border ${
                 selectedProject?.id === p.id 
-                  ? 'bg-claude-sand border-claude-border-strong shadow-claude-ring' 
-                  : 'bg-claude-surface border-claude-border hover:border-claude-border-strong hover:bg-claude-sand/50'
+                  ? 'bg-claude-surface border-claude-brand/20 shadow-claude-ring-deep' 
+                  : 'bg-claude-surface border-claude-border hover:border-claude-border-strong hover:bg-claude-surface'
               }`}
             >
               <div className="flex justify-between items-start mb-2">
                 <h3 className={`font-medium leading-tight line-clamp-2 pr-2 ${selectedProject?.id === p.id ? 'text-claude-near-black' : 'text-claude-near-black'}`}>
                   {p.title}
                   {isNewProject(p.discovered_at) && (
-                    <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-black tracking-widest bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 align-middle mb-0.5 animate-pulse">
+                    <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-black tracking-widest bg-claude-brand/10 text-claude-brand border border-claude-brand/20 align-middle mb-0.5 animate-pulse">
                       NEW
                     </span>
                   )}
@@ -312,7 +312,7 @@ Day3: ${selectedProject.deep_dive_result.mvpTimeline?.day3 || '暂无'}
               <div className="flex flex-wrap gap-2 text-[10px] font-mono mt-1">
                 {p.source && getSourceBadge(p.source)}
                 {p.prize_pool && p.prize_pool !== 'null' && (
-                  <span className="flex items-center text-emerald-400/90 bg-emerald-400/10 px-1.5 py-0.5 rounded">
+                  <span className="flex items-center text-claude-brand/90 bg-claude-brand/10 px-1.5 py-0.5 rounded">
                     <DollarSign size={10} className="mr-0.5" />
                     {p.prize_pool.length > 15 ? p.prize_pool.substring(0,15)+'...' : p.prize_pool}
                   </span>
@@ -385,7 +385,7 @@ Day3: ${selectedProject.deep_dive_result.mvpTimeline?.day3 || '暂无'}
                           </div>
                           <div className="h-1 bg-claude-sand rounded-full overflow-hidden">
                             <div 
-                              className={`h-full rounded-full ${metric.val >= 8 ? 'bg-claude-brand' : metric.val >= 6 ? 'bg-zinc-400' : 'bg-zinc-600'}`}
+                              className={`h-full rounded-full ${metric.val >= 8 ? 'bg-claude-brand' : metric.val >= 6 ? 'bg-claude-accent' : 'bg-claude-text-tertiary'}`}
                               style={{ width: `${(metric.val / 10) * 100}%` }}
                             />
                           </div>
@@ -493,7 +493,7 @@ Day3: ${selectedProject.deep_dive_result.mvpTimeline?.day3 || '暂无'}
                             <h3 className="text-sm font-serif font-medium text-claude-near-black mb-2 leading-tight">{idea.name}</h3>
                             <p className="text-xs text-claude-text-secondary mb-3 leading-relaxed">{idea.description}</p>
                             <div className="text-[10px] text-claude-text-tertiary font-mono border-t border-claude-border pt-2 mt-2">
-                              <span className="text-emerald-400/80 mr-1">WHY:</span> {idea.whyItWins}
+                              <span className="text-claude-brand/80 mr-1">WHY:</span> {idea.whyItWins}
                             </div>
                           </div>
                           <button 
@@ -574,7 +574,7 @@ Day3: ${selectedProject.deep_dive_result.mvpTimeline?.day3 || '暂无'}
                       value={error ? `Error: ${error.message}` : completion}
                       readOnly
                       placeholder={isGenerating ? "Agent is typing..." : "// Click a button above to generate artifacts..."}
-                      className="relative w-full h-64 bg-claude-surface border border-claude-border rounded-lg p-4 font-mono text-xs text-claude-text-secondary placeholder:text-zinc-700 focus:outline-none focus:border-claude-brand/50 focus:ring-1 focus:ring-claude-brand/50 resize-y custom-scrollbar"
+                      className="relative w-full h-64 bg-claude-surface border border-claude-border rounded-lg p-4 font-mono text-xs text-claude-text-secondary placeholder:text-claude-border-strong focus:outline-none focus:border-claude-brand/50 focus:ring-1 focus:ring-claude-brand/50 resize-y custom-scrollbar"
                       spellCheck="false"
                     />
                     {isGenerating && (
