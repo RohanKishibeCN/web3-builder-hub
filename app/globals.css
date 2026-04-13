@@ -3,18 +3,11 @@
 @tailwind utilities;
 
 @layer base {
-  :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+  body {
+    @apply bg-claude-bg text-claude-near-black font-sans selection:bg-claude-brand/20 selection:text-claude-near-black;
   }
   
-  .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-serif font-medium;
   }
-}
-
-body {
-  background-color: #09090b;
-  color: #fafafa;
 }

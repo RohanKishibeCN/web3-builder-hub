@@ -137,15 +137,15 @@ export default function Dashboard() {
 
   const getScoreColor = (score: number) => {
     if (score >= 9) return 'text-emerald-400 border-emerald-400/30 bg-emerald-400/10 shadow-[0_0_10px_rgba(52,211,153,0.2)]';
-    if (score >= 8) return 'text-yellow-400 border-yellow-400/30 bg-yellow-400/10 shadow-[0_0_10px_rgba(250,204,21,0.2)]';
-    if (score >= 6) return 'text-zinc-300 border-zinc-700 bg-zinc-800';
-    return 'text-zinc-500 border-zinc-800 bg-zinc-900';
+    if (score >= 8) return 'text-claude-brand border-claude-brand/30 bg-claude-brand/10 shadow-[0_0_10px_rgba(250,204,21,0.2)]';
+    if (score >= 6) return 'text-claude-text-secondary border-claude-border-strong bg-claude-border-strong';
+    return 'text-claude-text-tertiary border-claude-border bg-claude-sand';
   };
 
   const getScoreTextColor = (score: number) => {
     if (score >= 9) return 'text-emerald-400';
-    if (score >= 8) return 'text-yellow-400';
-    return 'text-zinc-400';
+    if (score >= 8) return 'text-claude-brand';
+    return 'text-claude-text-secondary';
   };
 
   const handleGenerate = async (type: 'proposal' | 'code') => {
@@ -243,20 +243,20 @@ Day3: ${selectedProject.deep_dive_result.mvpTimeline?.day3 || '暂无'}
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#09090b] flex items-center justify-center text-zinc-500 font-mono">
+      <div className="min-h-screen bg-claude-bg flex items-center justify-center text-claude-text-tertiary font-mono">
         <Terminal className="animate-pulse mr-2" /> INITIALIZING SYSTEM...
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#09090b] text-zinc-300 font-sans flex overflow-hidden selection:bg-yellow-400/30">
+    <div className="min-h-screen bg-claude-bg text-claude-text-secondary font-sans flex overflow-hidden selection:bg-claude-brand/30">
       
       {/* LEFT PANEL: FEED */}
-      <div className="w-[40%] md:w-[35%] lg:w-[30%] border-r border-zinc-800/60 bg-[#09090b] flex flex-col h-screen">
-        <div className="p-4 border-b border-zinc-800/60 bg-zinc-950/50 backdrop-blur-sm sticky top-0 z-10 flex items-center justify-between">
-          <div className="flex items-center gap-2 font-mono font-bold text-zinc-100">
-            <Activity size={18} className="text-yellow-400" />
+      <div className="w-[40%] md:w-[35%] lg:w-[30%] border-r border-claude-border bg-claude-bg flex flex-col h-screen">
+        <div className="p-4 border-b border-claude-border bg-claude-bg/80 backdrop-blur-sm sticky top-0 z-10 flex items-center justify-between">
+          <div className="flex items-center gap-2 font-mono font-bold text-claude-near-black">
+            <Activity size={18} className="text-claude-brand" />
             <span>INTELLIGENCE_FEED</span>
           </div>
           <div className="flex items-center gap-3">
@@ -268,7 +268,7 @@ Day3: ${selectedProject.deep_dive_result.mvpTimeline?.day3 || '暂无'}
               <Database size={10} />
               <span className="tracking-wider">DATA_MATRIX</span>
             </Link>
-            <div className="text-xs font-mono text-zinc-600 bg-zinc-900 px-2 py-1 rounded">
+            <div className="text-xs font-mono text-claude-text-silver bg-claude-sand px-2 py-1 rounded">
               {projects.length} RECORDS
             </div>
           </div>
@@ -281,12 +281,12 @@ Day3: ${selectedProject.deep_dive_result.mvpTimeline?.day3 || '暂无'}
               onClick={() => setSelectedProject(p)}
               className={`p-4 rounded-lg cursor-pointer transition-all duration-200 border ${
                 selectedProject?.id === p.id 
-                  ? 'bg-zinc-900 border-zinc-700 ring-1 ring-zinc-700/50' 
-                  : 'bg-[#0c0c0e] border-zinc-800/40 hover:border-zinc-700 hover:bg-zinc-900/50'
+                  ? 'bg-claude-sand border-claude-border-strong shadow-claude-ring' 
+                  : 'bg-claude-surface border-claude-border hover:border-claude-border-strong hover:bg-claude-sand/50'
               }`}
             >
               <div className="flex justify-between items-start mb-2">
-                <h3 className={`font-medium leading-tight line-clamp-2 pr-2 ${selectedProject?.id === p.id ? 'text-white' : 'text-zinc-200'}`}>
+                <h3 className={`font-medium leading-tight line-clamp-2 pr-2 ${selectedProject?.id === p.id ? 'text-claude-near-black' : 'text-claude-near-black'}`}>
                   {p.title}
                   {isNewProject(p.discovered_at) && (
                     <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-black tracking-widest bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 align-middle mb-0.5 animate-pulse">
@@ -299,13 +299,13 @@ Day3: ${selectedProject.deep_dive_result.mvpTimeline?.day3 || '暂无'}
                     {p.score.total_score}
                   </div>
                 ) : (
-                  <div className="shrink-0 text-[10px] uppercase font-mono text-zinc-600 bg-zinc-900 px-1 py-0.5 rounded border border-zinc-800">
+                  <div className="shrink-0 text-[10px] uppercase font-mono text-claude-text-silver bg-claude-sand px-1 py-0.5 rounded border border-claude-border">
                     N/A
                   </div>
                 )}
               </div>
               
-              <p className="text-xs text-zinc-500 mb-3 line-clamp-2 leading-relaxed">
+              <p className="text-xs text-claude-text-tertiary mb-3 line-clamp-2 leading-relaxed">
                 {p.summary}
               </p>
               
@@ -318,7 +318,7 @@ Day3: ${selectedProject.deep_dive_result.mvpTimeline?.day3 || '暂无'}
                   </span>
                 )}
                 {p.deadline && (
-                  <span className="flex items-center text-zinc-400 bg-zinc-800/80 px-1.5 py-0.5 rounded">
+                  <span className="flex items-center text-claude-text-secondary bg-claude-border-strong/80 px-1.5 py-0.5 rounded">
                     <Calendar size={10} className="mr-0.5" />
                     {new Date(p.deadline).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                   </span>
@@ -330,21 +330,21 @@ Day3: ${selectedProject.deep_dive_result.mvpTimeline?.day3 || '暂无'}
       </div>
 
       {/* RIGHT PANEL: DEEP DIVE & WORKSPACE */}
-      <div className="flex-1 flex flex-col h-screen bg-[#09090b] relative">
+      <div className="flex-1 flex flex-col h-screen bg-claude-bg relative">
         {selectedProject ? (
           <>
             {/* Header */}
-            <div className="p-6 border-b border-zinc-800/60 bg-[#0c0c0e]">
+            <div className="p-6 border-b border-claude-border bg-claude-surface">
               <div className="flex items-start justify-between mb-4">
                 <div>
-                  <h1 className="text-2xl font-semibold text-white tracking-tight mb-2">
+                  <h1 className="text-2xl font-serif font-medium text-claude-near-black tracking-tight mb-2">
                     {selectedProject.title}
                   </h1>
                   <a 
                     href={selectedProject.url} 
                     target="_blank" 
                     rel="noopener noreferrer"
-                    className="inline-flex items-center text-xs font-mono text-zinc-500 hover:text-yellow-400 transition-colors"
+                    className="inline-flex items-center text-xs font-mono text-claude-text-tertiary hover:text-claude-brand transition-colors"
                   >
                     <ExternalLink size={12} className="mr-1" />
                     {selectedProject.url.replace(/^https?:\/\//, '').split('/')[0]}
@@ -355,7 +355,7 @@ Day3: ${selectedProject.deep_dive_result.mvpTimeline?.day3 || '暂无'}
                     <div className={`text-4xl font-light tracking-tighter ${getScoreTextColor(selectedProject.score.total_score)}`}>
                       {selectedProject.score.total_score.toFixed(1)}
                     </div>
-                    <div className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest mt-1">Total Score</div>
+                    <div className="text-[10px] font-mono text-claude-text-tertiary uppercase tracking-widest mt-1">Total Score</div>
                   </div>
                 )}
               </div>
@@ -367,7 +367,7 @@ Day3: ${selectedProject.deep_dive_result.mvpTimeline?.day3 || '暂无'}
                 {/* Score Radar / Bars */}
                 {selectedProject.score && (
                   <section>
-                    <h2 className="text-xs font-mono text-zinc-500 uppercase tracking-widest mb-4 flex items-center">
+                    <h2 className="text-xs font-mono text-claude-text-tertiary uppercase tracking-widest mb-4 flex items-center">
                       <Search size={14} className="mr-2" /> Evaluation Metrics
                     </h2>
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
@@ -378,22 +378,22 @@ Day3: ${selectedProject.deep_dive_result.mvpTimeline?.day3 || '暂无'}
                         { label: 'Trend Match', val: selectedProject.score.trend_score ?? selectedProject.score.trend_match ?? selectedProject.score.builder_match ?? 0 },
                         { label: 'Rule Clarity', val: selectedProject.score.clarity_score ?? selectedProject.score.rule_clarity ?? 0 }
                       ].map((metric) => (
-                        <div key={metric.label} className="bg-[#0c0c0e] border border-zinc-800/60 p-3 rounded-md">
+                        <div key={metric.label} className="bg-claude-surface border border-claude-border p-3 rounded-md">
                           <div className="flex justify-between items-end mb-2">
-                            <span className="text-xs text-zinc-400">{metric.label}</span>
+                            <span className="text-xs text-claude-text-secondary">{metric.label}</span>
                             <span className={`text-sm font-mono font-medium ${getScoreTextColor(metric.val)}`}>{metric.val}/10</span>
                           </div>
-                          <div className="h-1 bg-zinc-900 rounded-full overflow-hidden">
+                          <div className="h-1 bg-claude-sand rounded-full overflow-hidden">
                             <div 
-                              className={`h-full rounded-full ${metric.val >= 8 ? 'bg-yellow-400' : metric.val >= 6 ? 'bg-zinc-400' : 'bg-zinc-600'}`}
+                              className={`h-full rounded-full ${metric.val >= 8 ? 'bg-claude-brand' : metric.val >= 6 ? 'bg-zinc-400' : 'bg-zinc-600'}`}
                               style={{ width: `${(metric.val / 10) * 100}%` }}
                             />
                           </div>
                         </div>
                       ))}
                     </div>
-                    <div className="mt-4 p-3 bg-zinc-900/50 border-l-2 border-yellow-400 text-sm text-zinc-300">
-                      <span className="font-mono text-yellow-400 mr-2">AGENT_COMMENT:</span>
+                    <div className="mt-4 p-3 bg-claude-sand/50 border-l-2 border-claude-brand text-sm text-claude-text-secondary">
+                      <span className="font-mono text-claude-brand mr-2">AGENT_COMMENT:</span>
                       {selectedProject.score.reason}
                     </div>
                   </section>
@@ -402,7 +402,7 @@ Day3: ${selectedProject.deep_dive_result.mvpTimeline?.day3 || '暂无'}
                 {/* Deep Dive Insights */}
                 {selectedProject.deep_dive_result && (
                   <section>
-                    <h2 className="text-xs font-mono text-zinc-500 uppercase tracking-widest mb-4 flex items-center">
+                    <h2 className="text-xs font-mono text-claude-text-tertiary uppercase tracking-widest mb-4 flex items-center">
                       <Trophy size={14} className="mr-2" /> Strategy & Planning
                     </h2>
                     
@@ -410,18 +410,18 @@ Day3: ${selectedProject.deep_dive_result.mvpTimeline?.day3 || '暂无'}
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                         <div className="space-y-4">
                           <div>
-                            <div className="text-[10px] font-mono text-zinc-500 mb-1">RECOMMENDED TRACK</div>
-                            <div className="text-sm text-zinc-200">{selectedProject.deep_dive_result.suggestedTrack}</div>
+                            <div className="text-[10px] font-mono text-claude-text-tertiary mb-1">RECOMMENDED TRACK</div>
+                            <div className="text-sm text-claude-near-black">{selectedProject.deep_dive_result.suggestedTrack}</div>
                           </div>
                           <div>
-                            <div className="text-[10px] font-mono text-zinc-500 mb-1">DIFFERENTIATION</div>
-                            <div className="text-sm text-zinc-200">{selectedProject.deep_dive_result.differentiation}</div>
+                            <div className="text-[10px] font-mono text-claude-text-tertiary mb-1">DIFFERENTIATION</div>
+                            <div className="text-sm text-claude-near-black">{selectedProject.deep_dive_result.differentiation}</div>
                           </div>
                           <div>
-                            <div className="text-[10px] font-mono text-zinc-500 mb-1">TECH STACK</div>
+                            <div className="text-[10px] font-mono text-claude-text-tertiary mb-1">TECH STACK</div>
                             <div className="flex flex-wrap gap-2 mt-1">
                               {selectedProject.deep_dive_result.suggestedTechStack.map(t => (
-                                <span key={t} className="text-xs font-mono px-2 py-0.5 bg-zinc-800 text-zinc-300 rounded border border-zinc-700/50">
+                                <span key={t} className="text-xs font-mono px-2 py-0.5 bg-claude-border-strong text-claude-text-secondary rounded border border-claude-border-strong">
                                   {t}
                                 </span>
                               ))}
@@ -430,19 +430,19 @@ Day3: ${selectedProject.deep_dive_result.mvpTimeline?.day3 || '暂无'}
                         </div>
 
                         {/* MVP Timeline */}
-                        <div className="bg-[#0c0c0e] border border-zinc-800/60 p-4 rounded-md">
-                          <div className="text-[10px] font-mono text-zinc-500 mb-3">MVP TIMELINE (3 DAYS)</div>
-                          <div className="space-y-4 relative before:absolute before:inset-0 before:ml-[9px] before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-zinc-800">
+                        <div className="bg-claude-surface border border-claude-border p-4 rounded-md">
+                          <div className="text-[10px] font-mono text-claude-text-tertiary mb-3">MVP TIMELINE (3 DAYS)</div>
+                          <div className="space-y-4 relative before:absolute before:inset-0 before:ml-[9px] before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-claude-border-strong">
                             {['day1', 'day2', 'day3'].map((day, idx) => {
                               const val = selectedProject.deep_dive_result!.mvpTimeline[day as keyof typeof selectedProject.deep_dive_result.mvpTimeline];
                               return (
                                 <div key={day} className="relative flex items-start gap-3 group">
-                                  <div className="flex items-center justify-center w-5 h-5 rounded-full border-2 border-zinc-900 bg-zinc-800 group-hover:border-yellow-400 transition-colors z-10 shrink-0">
-                                    <div className="w-1.5 h-1.5 bg-zinc-500 rounded-full group-hover:bg-yellow-400" />
+                                  <div className="flex items-center justify-center w-5 h-5 rounded-full border-2 border-zinc-900 bg-claude-border-strong group-hover:border-claude-brand transition-colors z-10 shrink-0">
+                                    <div className="w-1.5 h-1.5 bg-zinc-500 rounded-full group-hover:bg-claude-brand" />
                                   </div>
                                   <div className="pt-0.5">
-                                    <div className="text-[10px] font-mono text-yellow-400/80 mb-0.5 uppercase">{day.replace('day', 'Day ')}</div>
-                                    <div className="text-xs text-zinc-400">{val}</div>
+                                    <div className="text-[10px] font-mono text-claude-brand/80 mb-0.5 uppercase">{day.replace('day', 'Day ')}</div>
+                                    <div className="text-xs text-claude-text-secondary">{val}</div>
                                   </div>
                                 </div>
                               )
@@ -451,10 +451,10 @@ Day3: ${selectedProject.deep_dive_result.mvpTimeline?.day3 || '暂无'}
                         </div>
                       </div>
                     ) : (
-                      <div className="flex flex-col items-center justify-center p-8 bg-zinc-900/30 rounded-lg border border-zinc-800/50 border-dashed text-center mb-6">
-                        <Trophy size={32} className="text-zinc-600 mb-3" />
-                        <div className="text-sm font-medium text-zinc-300 mb-1">Strategy Not Generated</div>
-                        <div className="text-xs text-zinc-500 max-w-md">
+                      <div className="flex flex-col items-center justify-center p-8 bg-claude-sand/30 rounded-lg border border-claude-border border-dashed text-center mb-6">
+                        <Trophy size={32} className="text-claude-text-silver mb-3" />
+                        <div className="text-sm font-medium text-claude-text-secondary mb-1">Strategy Not Generated</div>
+                        <div className="text-xs text-claude-text-tertiary max-w-md">
                           This project scored {selectedProject.score?.total_score}/10. 
                           Strategic planning and MVP timelines are only generated for high-potential projects (score ≥ 8) to save API costs.
                         </div>
@@ -466,7 +466,7 @@ Day3: ${selectedProject.deep_dive_result.mvpTimeline?.day3 || '暂无'}
                 {/* Project Ideas (Brainstorm) */}
                 {selectedProject.deep_dive_result?.projectIdeas && selectedProject.deep_dive_result.projectIdeas.length > 0 ? (
                   <section>
-                    <h2 className="text-xs font-mono text-zinc-500 uppercase tracking-widest mb-4 flex items-center">
+                    <h2 className="text-xs font-mono text-claude-text-tertiary uppercase tracking-widest mb-4 flex items-center">
                       <Lightbulb size={14} className="mr-2" /> IDEA BRAINSTORM
                     </h2>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -474,33 +474,33 @@ Day3: ${selectedProject.deep_dive_result.mvpTimeline?.day3 || '暂无'}
                         <div 
                           key={idx} 
                           onClick={() => setSelectedIdeaIndex(idx)}
-                          className={`bg-[#0c0c0e] border p-4 rounded-md flex flex-col justify-between transition-all cursor-pointer ${
+                          className={`bg-claude-surface border p-4 rounded-md flex flex-col justify-between transition-all cursor-pointer ${
                             selectedIdeaIndex === idx 
-                              ? 'border-yellow-400 shadow-[0_0_15px_rgba(250,204,21,0.15)] ring-1 ring-yellow-400/50' 
-                              : 'border-zinc-800/60 hover:border-zinc-700'
+                              ? 'border-claude-brand shadow-claude-whisper ring-1 ring-claude-brand/50' 
+                              : 'border-claude-border hover:border-claude-border-strong'
                           }`}
                         >
                           <div>
                             <div className="flex items-center justify-between mb-2">
                               <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded border ${
                                 selectedIdeaIndex === idx
-                                  ? 'bg-yellow-400/10 text-yellow-400 border-yellow-400/30'
-                                  : 'bg-zinc-800 text-zinc-400 border-zinc-700'
+                                  ? 'bg-claude-brand/10 text-claude-brand border-claude-brand/30'
+                                  : 'bg-claude-border-strong text-claude-text-secondary border-claude-border-strong'
                               }`}>
                                 IDEA {idx + 1}
                               </span>
                             </div>
-                            <h3 className="text-sm font-semibold text-white mb-2 leading-tight">{idea.name}</h3>
-                            <p className="text-xs text-zinc-400 mb-3 leading-relaxed">{idea.description}</p>
-                            <div className="text-[10px] text-zinc-500 font-mono border-t border-zinc-800/60 pt-2 mt-2">
+                            <h3 className="text-sm font-serif font-medium text-claude-near-black mb-2 leading-tight">{idea.name}</h3>
+                            <p className="text-xs text-claude-text-secondary mb-3 leading-relaxed">{idea.description}</p>
+                            <div className="text-[10px] text-claude-text-tertiary font-mono border-t border-claude-border pt-2 mt-2">
                               <span className="text-emerald-400/80 mr-1">WHY:</span> {idea.whyItWins}
                             </div>
                           </div>
                           <button 
                             className={`w-full mt-4 py-1.5 text-[10px] font-mono transition-colors border rounded ${
                               selectedIdeaIndex === idx
-                                ? 'bg-yellow-400/10 text-yellow-400 border-yellow-400/30 hover:bg-yellow-400/20'
-                                : 'bg-zinc-900 text-zinc-400 border-zinc-800 hover:text-zinc-300 hover:bg-zinc-800'
+                                ? 'bg-claude-brand/10 text-claude-brand border-claude-brand/30 hover:bg-claude-brand/20'
+                                : 'bg-claude-sand text-claude-text-secondary border-claude-border hover:text-claude-text-secondary hover:bg-claude-border-strong'
                             }`}
                             onClick={(e) => {
                               e.stopPropagation();
@@ -517,17 +517,17 @@ Day3: ${selectedProject.deep_dive_result.mvpTimeline?.day3 || '暂无'}
                   </section>
                 ) : (
                   <section>
-                    <h2 className="text-xs font-mono text-zinc-500 uppercase tracking-widest mb-4 flex items-center">
+                    <h2 className="text-xs font-mono text-claude-text-tertiary uppercase tracking-widest mb-4 flex items-center">
                       <Lightbulb size={14} className="mr-2" /> IDEA BRAINSTORM
                     </h2>
-                    <div className="bg-[#0c0c0e] border border-zinc-800/60 p-4 rounded-md flex flex-col items-center justify-center py-8 text-center">
-                      <Lightbulb size={24} className="text-zinc-600 mb-3" />
-                      <p className="text-sm text-zinc-400 mb-1">No Ideas Found</p>
-                      <p className="text-xs text-zinc-500 max-w-sm mb-4">This record was evaluated before the IDEA BRAINSTORM module was added. Click the button below to re-evaluate it and generate ideas.</p>
+                    <div className="bg-claude-surface border border-claude-border p-4 rounded-md flex flex-col items-center justify-center py-8 text-center">
+                      <Lightbulb size={24} className="text-claude-text-silver mb-3" />
+                      <p className="text-sm text-claude-text-secondary mb-1">No Ideas Found</p>
+                      <p className="text-xs text-claude-text-tertiary max-w-sm mb-4">This record was evaluated before the IDEA BRAINSTORM module was added. Click the button below to re-evaluate it and generate ideas.</p>
                       <button 
                         onClick={handleReEvaluate}
                         disabled={isReEvaluating}
-                        className="flex items-center text-xs font-mono px-4 py-2 bg-zinc-900 hover:bg-zinc-800 text-yellow-400 rounded border border-zinc-800 transition-colors disabled:opacity-50"
+                        className="flex items-center text-xs font-mono px-4 py-2 bg-claude-sand hover:bg-claude-border-strong text-claude-brand rounded border border-claude-border transition-colors disabled:opacity-50"
                       >
                         <RefreshCw size={12} className={`mr-2 ${isReEvaluating ? 'animate-spin' : ''}`} />
                         {isReEvaluating ? 'GENERATING IDEAS...' : 'RE-RUN DEEP DIVE'}
@@ -539,7 +539,7 @@ Day3: ${selectedProject.deep_dive_result.mvpTimeline?.day3 || '暂无'}
                 {/* Workspace / Terminal */}
                 <section className="pb-10">
                   <div className="flex items-center justify-between mb-2">
-                    <h2 className="text-xs font-mono text-zinc-500 uppercase tracking-widest flex items-center">
+                    <h2 className="text-xs font-mono text-claude-text-tertiary uppercase tracking-widest flex items-center">
                       <Terminal size={14} className="mr-2" /> Agentic Workspace
                     </h2>
                     <div className="flex gap-2">
@@ -549,8 +549,8 @@ Day3: ${selectedProject.deep_dive_result.mvpTimeline?.day3 || '暂无'}
                         disabled={isGenerating || selectedIdeaIndex === null}
                         className={`flex items-center text-[10px] font-mono px-3 py-1.5 rounded border transition-colors ${
                           selectedIdeaIndex === null
-                            ? 'bg-zinc-800/50 text-zinc-600 border-zinc-800 cursor-not-allowed'
-                            : 'bg-yellow-400/10 text-yellow-400 border-yellow-400/30 hover:bg-yellow-400/20 disabled:opacity-50'
+                            ? 'bg-claude-border-strong/50 text-claude-text-silver border-claude-border cursor-not-allowed'
+                            : 'bg-claude-brand/10 text-claude-brand border-claude-brand/30 hover:bg-claude-brand/20 disabled:opacity-50'
                         }`}
                         title={selectedIdeaIndex === null ? 'Please select an Idea first' : 'Generate Code Skeleton for selected Idea'}
                       >
@@ -559,26 +559,26 @@ Day3: ${selectedProject.deep_dive_result.mvpTimeline?.day3 || '暂无'}
                       <button 
                         onClick={handleReEvaluate}
                         disabled={isReEvaluating}
-                        className="flex items-center text-[10px] font-mono px-2 py-1.5 bg-zinc-900 hover:bg-zinc-800 text-zinc-500 rounded border border-zinc-800 transition-colors disabled:opacity-50"
+                        className="flex items-center text-[10px] font-mono px-2 py-1.5 bg-claude-sand hover:bg-claude-border-strong text-claude-text-tertiary rounded border border-claude-border transition-colors disabled:opacity-50"
                         title="Re-run Deep Dive (Update schema)"
                       >
-                        <RefreshCw size={12} className={isReEvaluating ? 'animate-spin text-yellow-400' : ''} />
+                        <RefreshCw size={12} className={isReEvaluating ? 'animate-spin text-claude-brand' : ''} />
                       </button>
                     </div>
                   </div>
                   
                   <div className="relative group">
-                    <div className="absolute inset-0 bg-gradient-to-r from-yellow-400/5 to-emerald-400/5 rounded-lg blur opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <div className="absolute inset-0 bg-gradient-to-r from-claude-brand/5 to-emerald-400/5 rounded-lg blur opacity-0 group-hover:opacity-100 transition-opacity" />
                     <textarea 
                       ref={textareaRef}
                       value={error ? `Error: ${error.message}` : completion}
                       readOnly
                       placeholder={isGenerating ? "Agent is typing..." : "// Click a button above to generate artifacts..."}
-                      className="relative w-full h-64 bg-[#050505] border border-zinc-800 rounded-lg p-4 font-mono text-xs text-zinc-300 placeholder:text-zinc-700 focus:outline-none focus:border-yellow-400/50 focus:ring-1 focus:ring-yellow-400/50 resize-y custom-scrollbar"
+                      className="relative w-full h-64 bg-claude-surface border border-claude-border rounded-lg p-4 font-mono text-xs text-claude-text-secondary placeholder:text-zinc-700 focus:outline-none focus:border-claude-brand/50 focus:ring-1 focus:ring-claude-brand/50 resize-y custom-scrollbar"
                       spellCheck="false"
                     />
                     {isGenerating && (
-                      <div className="absolute bottom-4 right-4 flex items-center text-[10px] font-mono text-yellow-400 animate-pulse">
+                      <div className="absolute bottom-4 right-4 flex items-center text-[10px] font-mono text-claude-brand animate-pulse">
                         <Sparkles size={12} className="mr-1" /> GENERATING...
                       </div>
                     )}
@@ -589,7 +589,7 @@ Day3: ${selectedProject.deep_dive_result.mvpTimeline?.day3 || '暂无'}
             </div>
           </>
         ) : (
-          <div className="flex-1 flex flex-col items-center justify-center text-zinc-600 font-mono">
+          <div className="flex-1 flex flex-col items-center justify-center text-claude-text-silver font-mono">
             <Terminal size={32} className="mb-4 opacity-50" />
             <p>SELECT A RECORD TO INITIATE DEEP DIVE</p>
           </div>
